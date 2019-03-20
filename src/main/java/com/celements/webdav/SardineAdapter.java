@@ -9,6 +9,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -17,6 +18,8 @@ import javax.ws.rs.core.UriBuilderException;
 
 import org.apache.http.conn.socket.ConnectionSocketFactory;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
+import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
+import org.apache.http.ssl.SSLContextBuilder;
 import org.xwiki.component.annotation.Component;
 import org.xwiki.component.annotation.Requirement;
 import org.xwiki.component.phase.Initializable;
@@ -82,7 +85,7 @@ public class SardineAdapter implements WebDavService, Initializable {
     URL url = buildCompleteUrl(remoteLogin, path);
     try {
       return getSardine(remoteLogin).list(url.toExternalForm());
-    } catch (IOException exc) {
+    } catch (IOException | GeneralSecurityException exc) {
       throw new WebDavException(format("failed for url [{0}] with login [{1}] ", url, remoteLogin),
           exc);
     }
@@ -105,7 +108,7 @@ public class SardineAdapter implements WebDavService, Initializable {
    * environment since it uses the org.apache.http.impl.conn.tsccm.ThreadSafeClientConnManager.
    * See <a href="https://github.com/lookfirst/sardine/wiki/UsageGuide#threading">Sardine Docu</a>.
    */
-  Sardine getSardine(RemoteLogin remoteLogin) throws WebDavException {
+  Sardine getSardine(RemoteLogin remoteLogin) throws GeneralSecurityException {
     checkNotNull(remoteLogin);
     String key = EC_KEY;
     if (remoteLogin.getDocumentReference() != null) {
@@ -119,12 +122,15 @@ public class SardineAdapter implements WebDavService, Initializable {
     return sardine;
   }
 
-  private Sardine createSardineInstance(RemoteLogin remoteLogin) {
+  private Sardine createSardineInstance(RemoteLogin remoteLogin) throws GeneralSecurityException {
+    SSLContextBuilder builder = new SSLContextBuilder();
+    builder.loadTrustMaterial(null, new TrustSelfSignedStrategy());
+    final ConnectionSocketFactory socketFactory = new SSLConnectionSocketFactory(builder.build());
     return new SardineImpl() {
 
       @Override
       protected ConnectionSocketFactory createDefaultSecureSocketFactory() {
-        return SSLConnectionSocketFactory.getSystemSocketFactory();
+        return socketFactory;
       }
     };
   }

@@ -39,7 +39,7 @@ public class WebDavScriptService implements ScriptService {
     return list;
   }
 
-  public Sardine debugSardine() throws WebDavException {
+  public Sardine debugSardine() throws Exception {
     Sardine sardine = null;
     if (rightsAccess.isSuperAdmin()) {
       sardine = getSardineAdapter().getSardine(webDavService.getConfiguredWebDavRemoteLogin());
@@ -47,7 +47,7 @@ public class WebDavScriptService implements ScriptService {
     return sardine;
   }
 
-  public List<DavResource> debugSardineList(String path) throws WebDavException {
+  public List<DavResource> debugSardineList(String path) throws Exception {
     List<DavResource> list = new ArrayList<>();
     if (rightsAccess.isSuperAdmin()) {
       list = getSardineAdapter().listInternal(Paths.get(path),
