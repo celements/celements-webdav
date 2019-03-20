@@ -15,6 +15,7 @@ import java.util.List;
 import javax.ws.rs.core.UriBuilder;
 import javax.ws.rs.core.UriBuilderException;
 
+import org.apache.http.conn.socket.ConnectionSocketFactory;
 import org.xwiki.component.annotation.Component;
 import org.xwiki.component.annotation.Requirement;
 import org.xwiki.component.phase.Initializable;
@@ -33,7 +34,7 @@ import com.celements.model.reference.RefBuilder;
 import com.celements.model.util.ModelUtils;
 import com.github.sardine.DavResource;
 import com.github.sardine.Sardine;
-import com.github.sardine.SardineFactory;
+import com.github.sardine.impl.SardineImpl;
 
 @Component(SardineAdapter.NAME)
 public class SardineAdapter implements WebDavService, Initializable {
@@ -111,21 +112,36 @@ public class SardineAdapter implements WebDavService, Initializable {
     }
     Sardine sardine = (Sardine) execution.getContext().getProperty(key);
     if (sardine == null) {
-      execution.getContext().setProperty(key, sardine = SardineFactory.begin(
-          remoteLogin.getUsername(), remoteLogin.getPassword()));
+      execution.getContext().setProperty(key, sardine = createSardineInstance(remoteLogin));
       sardine.enableCompression();
     }
     return sardine;
   }
 
+  private Sardine createSardineInstance(RemoteLogin remoteLogin) {
+    return new SardineImpl(remoteLogin.getUsername(), remoteLogin.getPassword()) {
+
+      // @Override
+      // protected Registry<ConnectionSocketFactory> createDefaultSchemeRegistry() {
+      // return RegistryBuilder.<ConnectionSocketFactory>create().register("http",
+      // this.createDefaultSocketFactory()).build();
+      // }
+
+      @Override
+      protected ConnectionSocketFactory createDefaultSecureSocketFactory() {
+        return this.createDefaultSocketFactory();
+      }
+    };
+  }
+
   @Override
   public RemoteLogin getConfiguredWebDavRemoteLogin() throws WebDavException {
+    DocumentReference webDavConfigDocRef = ConfigSourceUtils.getReferenceProperty(
+        "webdav.configdoc", DocumentReference.class).or(getDefaultWebDavConfigDocRef());
     try {
-      DocumentReference webDavConfigDocRef = ConfigSourceUtils.getReferenceProperty(
-          "webdav.configdoc", DocumentReference.class).or(getDefaultWebDavConfigDocRef());
       return remoteLoginLoader.load(webDavConfigDocRef);
     } catch (BeanLoadException exc) {
-      throw new WebDavException(exc);
+      throw new WebDavException("illegal WebDAV config doc: " + webDavConfigDocRef, exc);
     }
   }
 
