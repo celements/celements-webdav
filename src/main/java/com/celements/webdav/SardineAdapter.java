@@ -15,6 +15,8 @@ import java.util.List;
 import javax.ws.rs.core.UriBuilder;
 import javax.ws.rs.core.UriBuilderException;
 
+import org.apache.http.config.Registry;
+import org.apache.http.config.RegistryBuilder;
 import org.apache.http.conn.socket.ConnectionSocketFactory;
 import org.xwiki.component.annotation.Component;
 import org.xwiki.component.annotation.Requirement;
@@ -119,17 +121,13 @@ public class SardineAdapter implements WebDavService, Initializable {
   }
 
   private Sardine createSardineInstance(RemoteLogin remoteLogin) {
+    // remove support for https
     return new SardineImpl(remoteLogin.getUsername(), remoteLogin.getPassword()) {
 
-      // @Override
-      // protected Registry<ConnectionSocketFactory> createDefaultSchemeRegistry() {
-      // return RegistryBuilder.<ConnectionSocketFactory>create().register("http",
-      // this.createDefaultSocketFactory()).build();
-      // }
-
       @Override
-      protected ConnectionSocketFactory createDefaultSecureSocketFactory() {
-        return this.createDefaultSocketFactory();
+      protected Registry<ConnectionSocketFactory> createDefaultSchemeRegistry() {
+        return RegistryBuilder.<ConnectionSocketFactory>create().register("http",
+            this.createDefaultSocketFactory()).build();
       }
     };
   }
