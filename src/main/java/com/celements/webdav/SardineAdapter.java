@@ -10,16 +10,20 @@ import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.GeneralSecurityException;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.List;
 
+import javax.net.ssl.SSLContext;
 import javax.ws.rs.core.UriBuilder;
 import javax.ws.rs.core.UriBuilderException;
 
 import org.apache.http.conn.socket.ConnectionSocketFactory;
+import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
-import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
-import org.apache.http.ssl.SSLContextBuilder;
+import org.apache.http.ssl.SSLContexts;
+import org.apache.http.ssl.TrustStrategy;
 import org.xwiki.component.annotation.Component;
 import org.xwiki.component.annotation.Requirement;
 import org.xwiki.component.phase.Initializable;
@@ -123,9 +127,18 @@ public class SardineAdapter implements WebDavService, Initializable {
   }
 
   private Sardine createSardineInstance(RemoteLogin remoteLogin) throws GeneralSecurityException {
-    SSLContextBuilder builder = new SSLContextBuilder();
-    builder.loadTrustMaterial(null, new TrustSelfSignedStrategy());
-    final ConnectionSocketFactory socketFactory = new SSLConnectionSocketFactory(builder.build());
+    SSLContext sslContext = SSLContexts.custom().loadTrustMaterial(new TrustStrategy() {
+
+      @Override
+      public boolean isTrusted(X509Certificate[] chain, String authType)
+          throws CertificateException {
+        // TODO this is bad! :) instead use TrustSelfSignedStrategy
+        return true;
+      }
+
+    }).build();
+    final ConnectionSocketFactory socketFactory = new SSLConnectionSocketFactory(sslContext,
+        NoopHostnameVerifier.INSTANCE);
     return new SardineImpl() {
 
       @Override
