@@ -10,6 +10,8 @@
   <version>3.0-SNAPSHOT</version>
   <description>Celements WebDAV Client</description>
   <dependencies>
+
+    <!-- provided dependencies included in web module -->
     <dependency>
       <groupId>com.celements</groupId>
       <artifactId>celements-xwiki-core</artifactId>
@@ -28,17 +30,19 @@
       <version>3.11-SNAPSHOT</version>
       <scope>provided</scope>
     </dependency>
+
+    <!-- compile dependencies specific to this project -->
     <dependency>
+      <!-- Sardine WebDAV Client -->
       <groupId>com.github.lookfirst</groupId>
       <artifactId>sardine</artifactId>
       <version>5.8</version>
-      <scope>provided</scope>
     </dependency>
   </dependencies>
   <scm>
-    <connection>scm:git:git@github.com:celements/celements-cleverreach.git</connection>
-    <developerConnection>scm:git:git@github.com:celements/celements-cleverreach.git</developerConnection>
-    <url>https://github.com/celements/celements-cleverreach</url>
+    <connection>scm:git:git@github.com:celements/celements-webdav.git</connection>
+    <developerConnection>scm:git:git@github.com:celements/celements-webdav.git</developerConnection>
+    <url>https://github.com/celements/celements-webdav</url>
     <tag>HEAD</tag>
   </scm>
 </project>
