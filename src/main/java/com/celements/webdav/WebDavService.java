@@ -18,4 +18,7 @@ public interface WebDavService {
   @NotNull
   List<Path> list(@NotNull Path path, @NotNull RemoteLogin remoteLogin) throws WebDavException;
 
+  @NotNull
+  RemoteLogin getConfiguredWebDavRemoteLogin() throws WebDavException;
+
 }

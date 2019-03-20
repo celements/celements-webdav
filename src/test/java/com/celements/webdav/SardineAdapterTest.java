@@ -10,11 +10,11 @@ import com.xpn.xwiki.web.Utils;
 
 public class SardineAdapterTest extends AbstractComponentTest {
 
-  private SardineAdapter sardineAdapter;
+  private WebDavService sardineAdapter;
 
   @Before
   public void prepareTest() {
-    sardineAdapter = (SardineAdapter) Utils.getComponent(WebDavService.class);
+    sardineAdapter = Utils.getComponent(WebDavService.class);
   }
 
   @Test

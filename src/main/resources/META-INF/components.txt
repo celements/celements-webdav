@@ -1,1 +1,2 @@
+com.celements.webdav.DefaultWebDavService
 com.celements.webdav.SardineAdapter

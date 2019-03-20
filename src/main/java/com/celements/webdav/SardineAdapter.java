@@ -40,7 +40,7 @@ public class SardineAdapter implements WebDavService, Initializable {
 
   public static final String NAME = "sardine";
 
-  static final String EC_KEY = "WebDAV.Sardine|";
+  static final String EC_KEY = "WebDAV.Sardine";
 
   @Requirement(RemoteLoginClass.CLASS_DEF_HINT)
   ClassDefinition remoteLoginClass;
@@ -76,7 +76,7 @@ public class SardineAdapter implements WebDavService, Initializable {
     return ret;
   }
 
-  public List<DavResource> listInternal(Path path, RemoteLogin remoteLogin) throws WebDavException {
+  List<DavResource> listInternal(Path path, RemoteLogin remoteLogin) throws WebDavException {
     URL url = buildCompleteUrl(remoteLogin, path);
     try {
       return getSardine(remoteLogin).list(url.toExternalForm());
@@ -103,10 +103,12 @@ public class SardineAdapter implements WebDavService, Initializable {
    * environment since it uses the org.apache.http.impl.conn.tsccm.ThreadSafeClientConnManager.
    * See <a href="https://github.com/lookfirst/sardine/wiki/UsageGuide#threading">Sardine Docu</a>.
    */
-  public Sardine getSardine(RemoteLogin remoteLogin) throws WebDavException {
+  Sardine getSardine(RemoteLogin remoteLogin) throws WebDavException {
     checkNotNull(remoteLogin);
-    // TODO remoteLogin without docRef?!
-    String key = EC_KEY + modelUtils.serializeRef(remoteLogin.getDocumentReference(), GLOBAL);
+    String key = EC_KEY;
+    if (remoteLogin.getDocumentReference() != null) {
+      key += "|" + modelUtils.serializeRef(remoteLogin.getDocumentReference(), GLOBAL);
+    }
     Sardine sardine = (Sardine) execution.getContext().getProperty(key);
     if (sardine == null) {
       execution.getContext().setProperty(key, sardine = SardineFactory.begin(
@@ -116,7 +118,8 @@ public class SardineAdapter implements WebDavService, Initializable {
     return sardine;
   }
 
-  RemoteLogin getConfiguredWebDavRemoteLogin() throws WebDavException {
+  @Override
+  public RemoteLogin getConfiguredWebDavRemoteLogin() throws WebDavException {
     try {
       DocumentReference webDavConfigDocRef = ConfigSourceUtils.getReferenceProperty(
           "webdav.configdoc", DocumentReference.class).or(getDefaultWebDavConfigDocRef());
