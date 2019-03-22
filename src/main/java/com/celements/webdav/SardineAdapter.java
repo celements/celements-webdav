@@ -14,7 +14,6 @@ import java.security.KeyStore;
 import java.util.ArrayList;
 import java.util.List;
 
-import javax.net.ssl.SSLContext;
 import javax.ws.rs.core.UriBuilder;
 import javax.ws.rs.core.UriBuilderException;
 
@@ -129,10 +128,12 @@ public class SardineAdapter implements WebDavService, Initializable {
   }
 
   private Sardine newSardine(RemoteLogin remoteLogin) throws IOException, GeneralSecurityException {
+    String cacertsPath = cfgSrc.getProperty("celements.security.cacerts");
+    KeyStore trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
+    trustStore.load(context.getXWikiContext().getWiki().getResourceAsStream(cacertsPath), null);
+    final ConnectionSocketFactory socketFactory = new SSLConnectionSocketFactory(
+        SSLContexts.custom().loadTrustMaterial(trustStore, new TrustSelfSignedStrategy()).build());
     Sardine sardine = new SardineImpl(remoteLogin.getUsername(), remoteLogin.getPassword()) {
-
-      private final ConnectionSocketFactory socketFactory = new SSLConnectionSocketFactory(
-          loadSSLContext());
 
       @Override
       protected ConnectionSocketFactory createDefaultSecureSocketFactory() {
@@ -141,14 +142,6 @@ public class SardineAdapter implements WebDavService, Initializable {
     };
     sardine.enableCompression();
     return sardine;
-  }
-
-  private SSLContext loadSSLContext() throws IOException, GeneralSecurityException {
-    String cacertsPath = cfgSrc.getProperty("celements.security.cacerts");
-    KeyStore trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
-    trustStore.load(context.getXWikiContext().getWiki().getResourceAsStream(cacertsPath), null);
-    return SSLContexts.custom().loadTrustMaterial(trustStore,
-        new TrustSelfSignedStrategy()).build();
   }
 
   @Override
