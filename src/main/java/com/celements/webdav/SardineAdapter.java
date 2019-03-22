@@ -10,8 +10,7 @@ import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.GeneralSecurityException;
-import java.security.cert.CertificateException;
-import java.security.cert.X509Certificate;
+import java.security.KeyStore;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -20,19 +19,20 @@ import javax.ws.rs.core.UriBuilder;
 import javax.ws.rs.core.UriBuilderException;
 
 import org.apache.http.conn.socket.ConnectionSocketFactory;
-import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
+import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
 import org.apache.http.ssl.SSLContexts;
-import org.apache.http.ssl.TrustStrategy;
 import org.xwiki.component.annotation.Component;
 import org.xwiki.component.annotation.Requirement;
 import org.xwiki.component.phase.Initializable;
 import org.xwiki.component.phase.InitializationException;
+import org.xwiki.configuration.ConfigurationSource;
 import org.xwiki.context.Execution;
 import org.xwiki.model.reference.DocumentReference;
 
 import com.celements.auth.RemoteLogin;
 import com.celements.auth.classes.RemoteLoginClass;
+import com.celements.configuration.CelementsFromWikiConfigurationSource;
 import com.celements.configuration.ConfigSourceUtils;
 import com.celements.convert.bean.XDocBeanLoader;
 import com.celements.convert.bean.XDocBeanLoader.BeanLoadException;
@@ -56,6 +56,9 @@ public class SardineAdapter implements WebDavService, Initializable {
 
   @Requirement
   private Execution execution;
+
+  @Requirement(CelementsFromWikiConfigurationSource.NAME)
+  private ConfigurationSource cfgSrc;
 
   @Requirement
   private ModelUtils modelUtils;
@@ -112,7 +115,7 @@ public class SardineAdapter implements WebDavService, Initializable {
    * environment since it uses the org.apache.http.impl.conn.tsccm.ThreadSafeClientConnManager.
    * See <a href="https://github.com/lookfirst/sardine/wiki/UsageGuide#threading">Sardine Docu</a>.
    */
-  Sardine getSardine(RemoteLogin remoteLogin) throws GeneralSecurityException {
+  Sardine getSardine(RemoteLogin remoteLogin) throws IOException, GeneralSecurityException {
     checkNotNull(remoteLogin);
     String key = EC_KEY;
     if (remoteLogin.getDocumentReference() != null) {
@@ -120,32 +123,32 @@ public class SardineAdapter implements WebDavService, Initializable {
     }
     Sardine sardine = (Sardine) execution.getContext().getProperty(key);
     if (sardine == null) {
-      execution.getContext().setProperty(key, sardine = createSardineInstance(remoteLogin));
-      sardine.enableCompression();
+      execution.getContext().setProperty(key, sardine = newSardine(remoteLogin));
     }
     return sardine;
   }
 
-  private Sardine createSardineInstance(RemoteLogin remoteLogin) throws GeneralSecurityException {
-    SSLContext sslContext = SSLContexts.custom().loadTrustMaterial(new TrustStrategy() {
+  private Sardine newSardine(RemoteLogin remoteLogin) throws IOException, GeneralSecurityException {
+    Sardine sardine = new SardineImpl(remoteLogin.getUsername(), remoteLogin.getPassword()) {
 
-      @Override
-      public boolean isTrusted(X509Certificate[] chain, String authType)
-          throws CertificateException {
-        // TODO this is bad! :) instead use TrustSelfSignedStrategy
-        return true;
-      }
-
-    }).build();
-    final ConnectionSocketFactory socketFactory = new SSLConnectionSocketFactory(sslContext,
-        NoopHostnameVerifier.INSTANCE);
-    return new SardineImpl() {
+      private final ConnectionSocketFactory socketFactory = new SSLConnectionSocketFactory(
+          loadSSLContext());
 
       @Override
       protected ConnectionSocketFactory createDefaultSecureSocketFactory() {
         return socketFactory;
       }
     };
+    sardine.enableCompression();
+    return sardine;
+  }
+
+  private SSLContext loadSSLContext() throws IOException, GeneralSecurityException {
+    String cacertsPath = cfgSrc.getProperty("celements.security.cacerts");
+    KeyStore trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
+    trustStore.load(context.getXWikiContext().getWiki().getResourceAsStream(cacertsPath), null);
+    return SSLContexts.custom().loadTrustMaterial(trustStore,
+        new TrustSelfSignedStrategy()).build();
   }
 
   @Override
