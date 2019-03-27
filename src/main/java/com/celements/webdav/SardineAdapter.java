@@ -12,7 +12,9 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
+import java.security.cert.Certificate;
 import java.util.ArrayList;
+import java.util.Enumeration;
 import java.util.List;
 
 import javax.ws.rs.core.UriBuilder;
@@ -22,6 +24,8 @@ import org.apache.http.conn.socket.ConnectionSocketFactory;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
 import org.apache.http.ssl.SSLContexts;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.xwiki.component.annotation.Component;
 import org.xwiki.component.annotation.Requirement;
 import org.xwiki.component.phase.Initializable;
@@ -46,6 +50,8 @@ import com.github.sardine.impl.SardineImpl;
 
 @Component(SardineAdapter.NAME)
 public class SardineAdapter implements WebDavService, Initializable {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(SardineAdapter.class);
 
   public static final String NAME = "sardine";
 
@@ -129,10 +135,21 @@ public class SardineAdapter implements WebDavService, Initializable {
   }
 
   private Sardine newSardine(RemoteLogin remoteLogin) throws IOException, GeneralSecurityException {
-    String cacertsPath = cfgSrc.getProperty("celements.security.cacerts");
-    InputStream is = context.getXWikiContext().getWiki().getResource(cacertsPath).openStream();
     KeyStore trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
-    trustStore.load(is, null);
+    String cacertsPath = cfgSrc.getProperty("celements.security.cacerts");
+    try (InputStream is = context.getXWikiContext().getWiki().getResource(
+        cacertsPath).openStream()) {
+      trustStore.load(is, null);
+    }
+    LOGGER.warn("trustStore - aliases [{}]", trustStore.aliases());
+    for (Enumeration<String> e = trustStore.aliases(); e.hasMoreElements();) {
+      String alias = e.nextElement();
+      Certificate cert = trustStore.getCertificate(alias);
+      LOGGER.warn("trustStore - alias [{}]", alias);
+      LOGGER.warn("trustStore - cert [{}]", cert);
+      LOGGER.warn("trustStore - pkey [{}]", cert.getPublicKey());
+      LOGGER.warn("trustStore - pkey size [{}]", cert.getPublicKey().getEncoded().length);
+    }
     final ConnectionSocketFactory socketFactory = new SSLConnectionSocketFactory(
         SSLContexts.custom().loadTrustMaterial(trustStore, new TrustSelfSignedStrategy()).build());
     Sardine sardine = new SardineImpl(remoteLogin.getUsername(), remoteLogin.getPassword()) {
@@ -144,6 +161,7 @@ public class SardineAdapter implements WebDavService, Initializable {
     };
     sardine.enableCompression();
     return sardine;
+
   }
 
   @Override
