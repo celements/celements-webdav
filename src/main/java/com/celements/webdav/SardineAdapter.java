@@ -137,7 +137,7 @@ public class SardineAdapter implements WebDavService, Initializable {
 
       @Override
       protected ConnectionSocketFactory createDefaultSecureSocketFactory() {
-        return socketFactory;
+        return checkNotNull(socketFactory);
       }
     };
     sardine.enableCompression();
