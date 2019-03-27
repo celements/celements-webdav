@@ -5,6 +5,7 @@ import static com.google.common.base.Preconditions.*;
 import static java.text.MessageFormat.format;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.file.Path;
@@ -129,8 +130,9 @@ public class SardineAdapter implements WebDavService, Initializable {
 
   private Sardine newSardine(RemoteLogin remoteLogin) throws IOException, GeneralSecurityException {
     String cacertsPath = cfgSrc.getProperty("celements.security.cacerts");
+    InputStream is = context.getXWikiContext().getWiki().getResource(cacertsPath).openStream();
     KeyStore trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
-    trustStore.load(context.getXWikiContext().getWiki().getResourceAsStream(cacertsPath), null);
+    trustStore.load(is, null);
     final ConnectionSocketFactory socketFactory = new SSLConnectionSocketFactory(
         SSLContexts.custom().loadTrustMaterial(trustStore, new TrustSelfSignedStrategy()).build());
     Sardine sardine = new SardineImpl(remoteLogin.getUsername(), remoteLogin.getPassword()) {
