@@ -1,22 +1,18 @@
 package com.celements.webdav;
 
-import static com.celements.model.util.ReferenceSerializationMode.*;
 import static com.google.common.base.Preconditions.*;
 import static java.text.MessageFormat.format;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.security.GeneralSecurityException;
-import java.security.KeyStore;
-import java.security.cert.Certificate;
 import java.util.ArrayList;
-import java.util.Enumeration;
 import java.util.List;
 
+import javax.net.ssl.SSLContext;
 import javax.ws.rs.core.UriBuilder;
 import javax.ws.rs.core.UriBuilderException;
 
@@ -43,7 +39,6 @@ import com.celements.convert.bean.XDocBeanLoader.BeanLoadException;
 import com.celements.model.classes.ClassDefinition;
 import com.celements.model.context.ModelContext;
 import com.celements.model.reference.RefBuilder;
-import com.celements.model.util.ModelUtils;
 import com.github.sardine.DavResource;
 import com.github.sardine.Sardine;
 import com.github.sardine.impl.SardineImpl;
@@ -65,9 +60,6 @@ public class SardineAdapter implements WebDavService, Initializable {
 
   @Requirement(CelementsFromWikiConfigurationSource.NAME)
   private ConfigurationSource cfgSrc;
-
-  @Requirement
-  private ModelUtils modelUtils;
 
   @Requirement
   private ModelContext context;
@@ -121,47 +113,43 @@ public class SardineAdapter implements WebDavService, Initializable {
    * environment since it uses the org.apache.http.impl.conn.tsccm.ThreadSafeClientConnManager.
    * See <a href="https://github.com/lookfirst/sardine/wiki/UsageGuide#threading">Sardine Docu</a>.
    */
-  Sardine getSardine(RemoteLogin remoteLogin) throws IOException, GeneralSecurityException {
+  Sardine getSardine(RemoteLogin remoteLogin) throws IOException, GeneralSecurityException,
+      WebDavException {
     checkNotNull(remoteLogin);
-    String key = EC_KEY;
-    if (remoteLogin.getDocumentReference() != null) {
-      key += "|" + modelUtils.serializeRef(remoteLogin.getDocumentReference(), GLOBAL);
-    }
+    // TODO implement hashcode with username and url
+    String key = EC_KEY + "|" + remoteLogin.hashCode();
     Sardine sardine = (Sardine) execution.getContext().getProperty(key);
     if (sardine == null) {
-      execution.getContext().setProperty(key, sardine = newSardine(remoteLogin));
+      sardine = newSecureSardineInstance(remoteLogin);
+      if (sardine.exists(remoteLogin.getUrl())) {
+        execution.getContext().setProperty(key, sardine);
+      } else {
+        throw new WebDavException("illegal remote login definition: " + remoteLogin);
+      }
     }
     return sardine;
   }
 
-  private Sardine newSardine(RemoteLogin remoteLogin) throws IOException, GeneralSecurityException {
-    KeyStore trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
-    String cacertsPath = cfgSrc.getProperty("celements.security.cacerts");
-    try (InputStream is = context.getXWikiContext().getWiki().getResource(
-        cacertsPath).openStream()) {
-      trustStore.load(is, null);
-    }
-    LOGGER.warn("trustStore - aliases [{}]", trustStore.aliases());
-    for (Enumeration<String> e = trustStore.aliases(); e.hasMoreElements();) {
-      String alias = e.nextElement();
-      Certificate cert = trustStore.getCertificate(alias);
-      LOGGER.warn("trustStore - alias [{}]", alias);
-      LOGGER.warn("trustStore - cert [{}]", cert);
-      LOGGER.warn("trustStore - pkey [{}]", cert.getPublicKey());
-      LOGGER.warn("trustStore - pkey size [{}]", cert.getPublicKey().getEncoded().length);
-    }
-    final ConnectionSocketFactory socketFactory = new SSLConnectionSocketFactory(
-        SSLContexts.custom().loadTrustMaterial(trustStore, new TrustSelfSignedStrategy()).build());
+  private Sardine newSecureSardineInstance(final RemoteLogin remoteLogin) throws IOException,
+      GeneralSecurityException {
+    final SSLContext sslCtx = SSLContexts.custom().loadTrustMaterial(getTrustStoreUrl(), null,
+        new TrustSelfSignedStrategy()).build();
     Sardine sardine = new SardineImpl(remoteLogin.getUsername(), remoteLogin.getPassword()) {
 
       @Override
       protected ConnectionSocketFactory createDefaultSecureSocketFactory() {
-        return checkNotNull(socketFactory);
+        return new SSLConnectionSocketFactory(sslCtx);
       }
     };
+    sardine.disablePreemptiveAuthentication();
     sardine.enableCompression();
     return sardine;
+  }
 
+  private URL getTrustStoreUrl() throws IOException {
+    String cacertsPath = cfgSrc.getProperty("celements.security.cacerts");
+    LOGGER.info("getTrustStoreUrl - cacertsPath [{}]", cacertsPath);
+    return context.getXWikiContext().getWiki().getResource(cacertsPath);
   }
 
   @Override
