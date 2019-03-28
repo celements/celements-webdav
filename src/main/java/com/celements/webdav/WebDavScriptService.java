@@ -62,11 +62,11 @@ public class WebDavScriptService implements ScriptService {
     return resource;
   }
 
-  public byte[] load(String filePath) {
-    byte[] content = new byte[0];
+  public String loadAsString(String filePath) {
+    String content = "";
     try {
       if (rightsAccess.isLoggedIn() && !isNullOrEmpty(filePath)) {
-        content = webDavService.load(Paths.get(filePath));
+        content = new String(webDavService.load(Paths.get(filePath)));
       }
     } catch (Exception exc) {
       LOGGER.warn("load - failed for path [{}]", filePath, exc);
