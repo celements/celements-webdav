@@ -79,6 +79,7 @@ public class SardineAdapter implements WebDavService, Initializable {
   public RemoteLogin getConfiguredWebDavRemoteLogin() throws WebDavException {
     DocumentReference webDavConfigDocRef = ConfigSourceUtils.getReferenceProperty(
         "webdav.configdoc", DocumentReference.class).or(getDefaultWebDavConfigDocRef());
+    LOGGER.info("getConfiguredWebDavRemoteLogin - {}", webDavConfigDocRef);
     try {
       return remoteLoginLoader.load(webDavConfigDocRef);
     } catch (BeanLoadException exc) {
@@ -100,7 +101,9 @@ public class SardineAdapter implements WebDavService, Initializable {
   public List<DavResource> list(Path path, RemoteLogin remoteLogin) throws WebDavException {
     URL url = buildCompleteUrl(remoteLogin, path);
     try {
-      return getSardine(remoteLogin).list(url.toExternalForm());
+      List<DavResource> list = getSardine(remoteLogin).list(url.toExternalForm());
+      LOGGER.info("list - {} : {}", url, list.size());
+      return list;
     } catch (IOException exc) {
       throw new WebDavException(url, remoteLogin, exc);
     }
@@ -120,6 +123,7 @@ public class SardineAdapter implements WebDavService, Initializable {
       if (sardine.exists(url.toExternalForm())) {
         resource = FluentIterable.from(sardine.list(url.toExternalForm())).first();
       }
+      LOGGER.info("get - {} : {}", url, resource);
       return resource;
     } catch (IOException exc) {
       throw new WebDavException(url, remoteLogin, exc);
@@ -135,7 +139,9 @@ public class SardineAdapter implements WebDavService, Initializable {
   public byte[] load(Path filePath, RemoteLogin remoteLogin) throws WebDavException {
     URL url = buildCompleteUrl(remoteLogin, filePath);
     try (InputStream is = getSardine(remoteLogin).get(url.toExternalForm())) {
-      return IOUtils.toByteArray(is);
+      byte[] content = IOUtils.toByteArray(is);
+      LOGGER.info("load - {} : {} bytes", url, content.length);
+      return content;
     } catch (IOException exc) {
       throw new WebDavException(url, remoteLogin, exc);
     }
@@ -149,12 +155,14 @@ public class SardineAdapter implements WebDavService, Initializable {
   @Override
   public boolean store(Path filePath, byte[] content, RemoteLogin remoteLogin)
       throws WebDavException {
+    boolean success = false;
     URL url = buildCompleteUrl(remoteLogin, filePath);
     try {
       Sardine sardine = getSardine(remoteLogin);
       if (!sardine.exists(url.toExternalForm())) {
         getSardine(remoteLogin).put(url.toExternalForm(), content);
-        return true;
+        LOGGER.info("store - {}", url);
+        success = true;
       } else {
         LOGGER.debug("store - tried to overwrite [{}]", url);
       }
@@ -163,7 +171,7 @@ public class SardineAdapter implements WebDavService, Initializable {
     } catch (IOException exc) {
       throw new WebDavException(url, remoteLogin, exc);
     }
-    return false;
+    return success;
   }
 
   @Override
@@ -173,22 +181,23 @@ public class SardineAdapter implements WebDavService, Initializable {
 
   @Override
   public boolean delete(Path path, RemoteLogin remoteLogin) throws WebDavException {
+    boolean success = false;
     URL url = buildCompleteUrl(remoteLogin, path);
     try {
       Sardine sardine = getSardine(remoteLogin);
       if (sardine.exists(url.toExternalForm())) {
         sardine.delete(url.toExternalForm());
-        return true;
+        LOGGER.info("delete - {}", url);
+        success = true;
       } else {
         LOGGER.debug("delete - tried to delete inexistent path [{}]", url);
       }
-      return true;
     } catch (SardineException exc) {
       LOGGER.warn("delete - failed on [{}] with login [{}]", url, remoteLogin, exc);
-      return false;
     } catch (IOException exc) {
       throw new WebDavException(url, remoteLogin, exc);
     }
+    return success;
   }
 
   private static URL buildCompleteUrl(RemoteLogin remoteLogin, Path path) throws WebDavException {
@@ -215,7 +224,7 @@ public class SardineAdapter implements WebDavService, Initializable {
     if (sardine == null) {
       execution.getContext().setProperty(key, sardine = newSecureSardineInstance(remoteLogin));
     } else {
-      LOGGER.debug("getSardine - returning cached instance [{}]", sardine.hashCode());
+      LOGGER.trace("getSardine - returning cached instance [{}]", sardine.hashCode());
     }
     return sardine;
   }
@@ -235,7 +244,7 @@ public class SardineAdapter implements WebDavService, Initializable {
       sardine.disablePreemptiveAuthentication();
       sardine.enableCompression();
       if (sardine.exists(remoteLogin.getUrl())) {
-        LOGGER.info("newSecureSardineInstance - [{}] for [{}]", sardine.hashCode(), remoteLogin);
+        LOGGER.debug("newSecureSardineInstance - [{}] for [{}]", sardine.hashCode(), remoteLogin);
         return sardine;
       } else {
         throw new WebDavException("illegal remote login definition: " + remoteLogin);
@@ -247,7 +256,7 @@ public class SardineAdapter implements WebDavService, Initializable {
 
   private URL getTrustStoreUrl() throws IOException {
     String cacertsPath = cfgSrc.getProperty("celements.security.cacerts");
-    LOGGER.info("getTrustStoreUrl - cacertsPath [{}]", cacertsPath);
+    LOGGER.debug("getTrustStoreUrl - cacertsPath [{}]", cacertsPath);
     return context.getXWikiContext().getWiki().getResource(cacertsPath);
   }
 
