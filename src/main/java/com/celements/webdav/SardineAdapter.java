@@ -48,23 +48,22 @@ import com.github.sardine.impl.SardineImpl;
 @Component(SardineAdapter.NAME)
 public class SardineAdapter implements WebDavService, Initializable {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(SardineAdapter.class);
-
   public static final String NAME = "sardine";
 
-  static final String EC_KEY = "WebDAV.Sardine";
+  private static final Logger LOGGER = LoggerFactory.getLogger(SardineAdapter.class);
+  private static final String EC_KEY = "WebDAV.Sardine";
 
   @Requirement(RemoteLoginClass.CLASS_DEF_HINT)
-  ClassDefinition remoteLoginClass;
+  private ClassDefinition remoteLoginClass;
 
   @Requirement
   private Execution execution;
 
-  @Requirement(CelementsFromWikiConfigurationSource.NAME)
-  private ConfigurationSource cfgSrc;
-
   @Requirement
   private ModelContext context;
+
+  @Requirement(CelementsFromWikiConfigurationSource.NAME)
+  private ConfigurationSource cfgSrc;
 
   @Requirement
   private XDocBeanLoader<RemoteLogin> remoteLoginLoader;
@@ -210,8 +209,8 @@ public class SardineAdapter implements WebDavService, Initializable {
           return new SSLConnectionSocketFactory(sslCtx);
         }
       };
-      // needed for store operations
-      sardine.enablePreemptiveAuthentication(new URL(remoteLogin.getUrl()));
+      // PE not needed because of following exists check already handles intial authentication
+      sardine.disablePreemptiveAuthentication();
       sardine.enableCompression();
       if (sardine.exists(remoteLogin.getUrl())) {
         LOGGER.info("newSecureSardineInstance - [{}] for [{}]", sardine.hashCode(), remoteLogin);
