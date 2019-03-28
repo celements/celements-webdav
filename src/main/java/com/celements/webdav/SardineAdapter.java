@@ -44,6 +44,8 @@ import com.github.sardine.DavResource;
 import com.github.sardine.Sardine;
 import com.github.sardine.impl.SardineException;
 import com.github.sardine.impl.SardineImpl;
+import com.google.common.base.Optional;
+import com.google.common.collect.FluentIterable;
 
 @Component(SardineAdapter.NAME)
 public class SardineAdapter implements WebDavService, Initializable {
@@ -99,6 +101,26 @@ public class SardineAdapter implements WebDavService, Initializable {
     URL url = buildCompleteUrl(remoteLogin, path);
     try {
       return getSardine(remoteLogin).list(url.toExternalForm());
+    } catch (IOException exc) {
+      throw new WebDavException(url, remoteLogin, exc);
+    }
+  }
+
+  @Override
+  public Optional<DavResource> get(Path path) throws WebDavException {
+    return get(path, getConfiguredWebDavRemoteLogin());
+  }
+
+  @Override
+  public Optional<DavResource> get(Path path, RemoteLogin remoteLogin) throws WebDavException {
+    URL url = buildCompleteUrl(remoteLogin, path);
+    try {
+      Sardine sardine = getSardine(remoteLogin);
+      Optional<DavResource> resource = Optional.absent();
+      if (sardine.exists(url.toExternalForm())) {
+        resource = FluentIterable.from(sardine.list(url.toExternalForm())).first();
+      }
+      return resource;
     } catch (IOException exc) {
       throw new WebDavException(url, remoteLogin, exc);
     }

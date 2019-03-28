@@ -9,6 +9,7 @@ import org.xwiki.component.annotation.ComponentRole;
 
 import com.celements.auth.RemoteLogin;
 import com.github.sardine.DavResource;
+import com.google.common.base.Optional;
 
 @ComponentRole
 public interface WebDavService {
@@ -21,6 +22,13 @@ public interface WebDavService {
 
   @NotNull
   List<DavResource> list(@NotNull Path path, @NotNull RemoteLogin remoteLogin)
+      throws WebDavException;
+
+  @NotNull
+  Optional<DavResource> get(@NotNull Path path) throws WebDavException;
+
+  @NotNull
+  Optional<DavResource> get(@NotNull Path path, @NotNull RemoteLogin remoteLogin)
       throws WebDavException;
 
   @NotNull
