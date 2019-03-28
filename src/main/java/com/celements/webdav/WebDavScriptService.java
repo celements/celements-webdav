@@ -1,9 +1,12 @@
 package com.celements.webdav;
 
-import java.nio.file.Path;
+import static com.google.common.base.Strings.*;
+
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+
+import javax.validation.constraints.NotNull;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,7 +16,7 @@ import org.xwiki.script.service.ScriptService;
 
 import com.celements.rights.access.IRightsAccessFacadeRole;
 import com.github.sardine.DavResource;
-import com.github.sardine.Sardine;
+import com.xpn.xwiki.api.Attachment;
 import com.xpn.xwiki.web.Utils;
 
 @Component("webdav")
@@ -27,10 +30,10 @@ public class WebDavScriptService implements ScriptService {
   @Requirement
   private IRightsAccessFacadeRole rightsAccess;
 
-  public List<Path> list(String path) {
-    List<Path> list = new ArrayList<>();
+  public List<DavResource> list(String path) {
+    List<DavResource> list = new ArrayList<>();
     try {
-      if (rightsAccess.isLoggedIn()) {
+      if (rightsAccess.isLoggedIn() && !isNullOrEmpty(path)) {
         list = webDavService.list(Paths.get(path));
       }
     } catch (Exception exc) {
@@ -39,25 +42,47 @@ public class WebDavScriptService implements ScriptService {
     return list;
   }
 
-  public Sardine debugSardine() throws Exception {
-    Sardine sardine = null;
+  @NotNull
+  byte[] load(String filePath) {
+    byte[] content = new byte[0];
+    try {
+      if (rightsAccess.isAdmin() && !isNullOrEmpty(filePath)) {
+        content = webDavService.load(Paths.get(filePath));
+      }
+    } catch (Exception exc) {
+      LOGGER.warn("load - failed for path [{}]", filePath, exc);
+    }
+    return content;
+  }
+
+  boolean store(String filePath, Attachment attachment) {
+    try {
+      if (rightsAccess.isAdmin() && !isNullOrEmpty(filePath) && (attachment != null)) {
+        return webDavService.store(Paths.get(filePath), attachment.getContent());
+      }
+    } catch (Exception exc) {
+      LOGGER.warn("store - failed for path [{}]", filePath, exc);
+    }
+    return false;
+  }
+
+  boolean delete(@NotNull final String path) {
+    try {
+      if (rightsAccess.isAdmin() && !isNullOrEmpty(path)) {
+        return webDavService.delete(Paths.get(path));
+      }
+    } catch (Exception exc) {
+      LOGGER.warn("delete - failed for path [{}]", path, exc);
+    }
+    return false;
+  }
+
+  public SardineAdapter debugSardine() throws Exception {
+    SardineAdapter sardine = null;
     if (rightsAccess.isSuperAdmin()) {
-      sardine = getSardineAdapter().getSardine(webDavService.getConfiguredWebDavRemoteLogin());
+      sardine = (SardineAdapter) Utils.getComponent(WebDavService.class, SardineAdapter.NAME);
     }
     return sardine;
-  }
-
-  public List<DavResource> debugSardineList(String path) throws Exception {
-    List<DavResource> list = new ArrayList<>();
-    if (rightsAccess.isSuperAdmin()) {
-      list = getSardineAdapter().listInternal(Paths.get(path),
-          webDavService.getConfiguredWebDavRemoteLogin());
-    }
-    return list;
-  }
-
-  private SardineAdapter getSardineAdapter() {
-    return (SardineAdapter) Utils.getComponent(WebDavService.class, SardineAdapter.NAME);
   }
 
 }
