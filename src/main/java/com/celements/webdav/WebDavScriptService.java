@@ -22,6 +22,7 @@ import com.celements.model.context.ModelContext;
 import com.celements.rights.access.EAccessLevel;
 import com.celements.rights.access.IRightsAccessFacadeRole;
 import com.celements.webdav.WebDavService.WebDavConnection;
+import com.celements.webdav.exception.DavResourceAccessException;
 import com.github.sardine.DavResource;
 import com.google.common.base.Optional;
 import com.xpn.xwiki.api.Attachment;
@@ -47,6 +48,8 @@ public class WebDavScriptService implements ScriptService {
       try {
         WebDavConnection webDav = webDavService.connect();
         list = webDav.list(Paths.get(path));
+      } catch (DavResourceAccessException exc) {
+        LOGGER.info("list - inaccessible resource [{}]", path, exc);
       } catch (Exception exc) {
         LOGGER.warn("list - failed for path [{}]", path, exc);
       }
@@ -61,7 +64,7 @@ public class WebDavScriptService implements ScriptService {
         WebDavConnection webDav = webDavService.connect();
         resource = webDav.get(Paths.get(path)).orNull();
       } catch (Exception exc) {
-        LOGGER.warn("list - failed for path [{}]", path, exc);
+        LOGGER.warn("get - failed for path [{}]", path, exc);
       }
     }
     return resource;
@@ -73,6 +76,8 @@ public class WebDavScriptService implements ScriptService {
       try {
         WebDavConnection webDav = webDavService.connect();
         content = new String(webDav.load(Paths.get(filePath)));
+      } catch (DavResourceAccessException exc) {
+        LOGGER.info("load - inaccessible resource [{}]", filePath, exc);
       } catch (Exception exc) {
         LOGGER.warn("load - failed for path [{}]", filePath, exc);
       }
@@ -97,6 +102,8 @@ public class WebDavScriptService implements ScriptService {
           response.setContentLength(content.length);
           response.getOutputStream().write(content);
         }
+      } catch (DavResourceAccessException exc) {
+        LOGGER.info("download - inaccessible resource [{}]", filePath, exc);
       } catch (Exception exc) {
         LOGGER.warn("download - failed for path [{}]", filePath, exc);
       }
@@ -109,6 +116,8 @@ public class WebDavScriptService implements ScriptService {
         WebDavConnection webDav = webDavService.connect();
         webDav.createDirectory(Paths.get(dirPath));
         return true;
+      } catch (DavResourceAccessException exc) {
+        LOGGER.info("createDirectory - inaccessible resource [{}]", dirPath, exc);
       } catch (Exception exc) {
         LOGGER.warn("createDirectory - failed for path [{}]", dirPath, exc);
       }
@@ -122,6 +131,8 @@ public class WebDavScriptService implements ScriptService {
         WebDavConnection webDav = webDavService.connect();
         webDav.create(Paths.get(filePath), attachment.getContent());
         return true;
+      } catch (DavResourceAccessException exc) {
+        LOGGER.info("create - inaccessible resource [{}]", filePath, exc);
       } catch (Exception exc) {
         LOGGER.warn("create - failed for path [{}]", filePath, exc);
       }
@@ -135,6 +146,8 @@ public class WebDavScriptService implements ScriptService {
         WebDavConnection webDav = webDavService.connect();
         webDav.update(Paths.get(filePath), attachment.getContent());
         return true;
+      } catch (DavResourceAccessException exc) {
+        LOGGER.info("update - inaccessible resource [{}]", filePath, exc);
       } catch (Exception exc) {
         LOGGER.warn("update - failed for path [{}]", filePath, exc);
       }
@@ -148,6 +161,8 @@ public class WebDavScriptService implements ScriptService {
         WebDavConnection webDav = webDavService.connect();
         webDav.createOrUpdate(Paths.get(filePath), attachment.getContent());
         return true;
+      } catch (DavResourceAccessException exc) {
+        LOGGER.info("createOrUpdate - inaccessible resource [{}]", filePath, exc);
       } catch (Exception exc) {
         LOGGER.warn("createOrUpdate - failed for path [{}]", filePath, exc);
       }
@@ -161,6 +176,8 @@ public class WebDavScriptService implements ScriptService {
         WebDavConnection webDav = webDavService.connect();
         webDav.delete(Paths.get(path));
         return true;
+      } catch (DavResourceAccessException exc) {
+        LOGGER.info("delete - inaccessible resource [{}]", path, exc);
       } catch (Exception exc) {
         LOGGER.warn("delete - failed for path [{}]", path, exc);
       }
