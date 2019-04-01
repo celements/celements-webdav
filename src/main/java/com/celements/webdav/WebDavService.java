@@ -30,7 +30,7 @@ public interface WebDavService {
   WebDavConnection connect(@NotNull RemoteLogin remoteLogin) throws DavConnectionException,
       MalformedURLException;
 
-  interface WebDavConnection {
+  interface WebDavConnection extends AutoCloseable {
 
     @NotNull
     List<DavResource> list(@NotNull Path path) throws IOException, DavResourceAccessException;

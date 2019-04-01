@@ -161,7 +161,7 @@ public class SardineAdapter implements WebDavService, Initializable {
     return context.getXWikiContext().getWiki().getResource(cacertsPath);
   }
 
-  public class SardineConnection implements WebDavConnection, AutoCloseable {
+  public class SardineConnection implements WebDavConnection {
 
     private final Sardine sardine;
     private final URL baseUrl;

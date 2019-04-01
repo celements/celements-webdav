@@ -40,48 +40,44 @@ public class WebDavScriptService implements ScriptService {
 
   public List<DavResource> list(String path) {
     List<DavResource> list = new ArrayList<>();
-    try {
-      if (rightsAccess.isLoggedIn() && !isNullOrEmpty(path)) {
-        WebDavConnection webDav = webDavService.connect();
+    if (rightsAccess.isLoggedIn() && !isNullOrEmpty(path)) {
+      try (WebDavConnection webDav = webDavService.connect()) {
         list = webDav.list(Paths.get(path));
+      } catch (Exception exc) {
+        LOGGER.warn("list - failed for path [{}]", path, exc);
       }
-    } catch (Exception exc) {
-      LOGGER.warn("list - failed for path [{}]", path, exc);
     }
     return list;
   }
 
   public DavResource get(String path) {
     DavResource resource = null;
-    try {
-      if (rightsAccess.isLoggedIn() && !isNullOrEmpty(path)) {
-        WebDavConnection webDav = webDavService.connect();
+    if (rightsAccess.isLoggedIn() && !isNullOrEmpty(path)) {
+      try (WebDavConnection webDav = webDavService.connect()) {
         resource = webDav.get(Paths.get(path)).orNull();
+      } catch (Exception exc) {
+        LOGGER.warn("list - failed for path [{}]", path, exc);
       }
-    } catch (Exception exc) {
-      LOGGER.warn("list - failed for path [{}]", path, exc);
     }
     return resource;
   }
 
   public String loadAsString(String filePath) {
     String content = "";
-    try {
-      if (rightsAccess.isLoggedIn() && !isNullOrEmpty(filePath)) {
-        WebDavConnection webDav = webDavService.connect();
+    if (rightsAccess.isLoggedIn() && !isNullOrEmpty(filePath)) {
+      try (WebDavConnection webDav = webDavService.connect()) {
         content = new String(webDav.load(Paths.get(filePath)));
+      } catch (Exception exc) {
+        LOGGER.warn("load - failed for path [{}]", filePath, exc);
       }
-    } catch (Exception exc) {
-      LOGGER.warn("load - failed for path [{}]", filePath, exc);
     }
     return content;
   }
 
   public void download(String filePath) {
-    try {
-      if (rightsAccess.isLoggedIn() && !isNullOrEmpty(filePath)) {
+    if (rightsAccess.isLoggedIn() && !isNullOrEmpty(filePath)) {
+      try (WebDavConnection webDav = webDavService.connect()) {
         Path path = Paths.get(filePath);
-        WebDavConnection webDav = webDavService.connect();
         Optional<DavResource> resource = webDav.get(path);
         if (resource.isPresent() && !resource.get().isDirectory()) {
           byte[] content = webDav.load(path);
@@ -94,60 +90,56 @@ public class WebDavScriptService implements ScriptService {
           response.setContentLength(content.length);
           response.getOutputStream().write(content);
         }
+      } catch (Exception exc) {
+        LOGGER.warn("download - failed for path [{}]", filePath, exc);
       }
-    } catch (Exception exc) {
-      LOGGER.warn("download - failed for path [{}]", filePath, exc);
     }
   }
 
   public boolean create(String filePath, Attachment attachment) {
-    try {
-      if (rightsAccess.isLoggedIn() && !isNullOrEmpty(filePath) && (attachment != null)) {
-        WebDavConnection webDav = webDavService.connect();
+    if (rightsAccess.isLoggedIn() && !isNullOrEmpty(filePath) && (attachment != null)) {
+      try (WebDavConnection webDav = webDavService.connect()) {
         webDav.create(Paths.get(filePath), attachment.getContent());
         return true;
+      } catch (Exception exc) {
+        LOGGER.warn("create - failed for path [{}]", filePath, exc);
       }
-    } catch (Exception exc) {
-      LOGGER.warn("create - failed for path [{}]", filePath, exc);
     }
     return false;
   }
 
   public boolean update(String filePath, Attachment attachment) {
-    try {
-      if (rightsAccess.isLoggedIn() && !isNullOrEmpty(filePath) && (attachment != null)) {
-        WebDavConnection webDav = webDavService.connect();
+    if (rightsAccess.isLoggedIn() && !isNullOrEmpty(filePath) && (attachment != null)) {
+      try (WebDavConnection webDav = webDavService.connect()) {
         webDav.update(Paths.get(filePath), attachment.getContent());
         return true;
+      } catch (Exception exc) {
+        LOGGER.warn("update - failed for path [{}]", filePath, exc);
       }
-    } catch (Exception exc) {
-      LOGGER.warn("update - failed for path [{}]", filePath, exc);
     }
     return false;
   }
 
   public boolean createOrUpdate(String filePath, Attachment attachment) {
-    try {
-      if (rightsAccess.isLoggedIn() && !isNullOrEmpty(filePath) && (attachment != null)) {
-        WebDavConnection webDav = webDavService.connect();
+    if (rightsAccess.isLoggedIn() && !isNullOrEmpty(filePath) && (attachment != null)) {
+      try (WebDavConnection webDav = webDavService.connect()) {
         webDav.createOrUpdate(Paths.get(filePath), attachment.getContent());
         return true;
+      } catch (Exception exc) {
+        LOGGER.warn("createOrUpdate - failed for path [{}]", filePath, exc);
       }
-    } catch (Exception exc) {
-      LOGGER.warn("createOrUpdate - failed for path [{}]", filePath, exc);
     }
     return false;
   }
 
   public boolean delete(final String path) {
-    try {
-      if (rightsAccess.isAdmin() && !isNullOrEmpty(path)) {
-        WebDavConnection webDav = webDavService.connect();
+    if (rightsAccess.isAdmin() && !isNullOrEmpty(path)) {
+      try (WebDavConnection webDav = webDavService.connect()) {
         webDav.delete(Paths.get(path));
         return true;
+      } catch (Exception exc) {
+        LOGGER.warn("delete - failed for path [{}]", path, exc);
       }
-    } catch (Exception exc) {
-      LOGGER.warn("delete - failed for path [{}]", path, exc);
     }
     return false;
   }
