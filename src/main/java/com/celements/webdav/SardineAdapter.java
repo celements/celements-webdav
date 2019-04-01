@@ -235,6 +235,19 @@ public class SardineAdapter implements WebDavService, Initializable {
     }
 
     @Override
+    public void createDirectory(@NotNull Path dirPath) throws IOException,
+        DavResourceAccessException {
+      URL url = buildCompleteUrl(dirPath);
+      try {
+        sardine.createDirectory(url.toExternalForm());
+        LOGGER.info("createDirectory - {}", url);
+      } catch (SardineException sardineExc) {
+        throwResourceAccessException(url, sardineExc);
+        throw sardineExc;
+      }
+    }
+
+    @Override
     public void create(Path filePath, byte[] content) throws IOException,
         DavResourceAccessException {
       URL url = buildCompleteUrl(filePath);
@@ -319,8 +332,10 @@ public class SardineAdapter implements WebDavService, Initializable {
     switch (exc.getStatusCode()) {
       case 403: // Forbidden
         throw new DavResourceAccessException("Forbidden - " + url, exc);
-      case 404: // Not Found
+      case 404: // Not found
         throw new DavResourceAccessException("Not Found - " + url, exc);
+      case 405: // Method Not Allowed
+        throw new DavResourceAccessException("Method not allowed - " + url, exc);
       case 409: // Conflict
         throw new DavResourceAccessException("Conflict - " + url, exc);
       case 410: // Gone

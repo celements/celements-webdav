@@ -20,6 +20,7 @@ import com.celements.common.test.AbstractComponentTest;
 import com.celements.configuration.CelementsFromWikiConfigurationSource;
 import com.celements.webdav.SardineAdapter.SardineConnection;
 import com.github.sardine.DavResource;
+import com.google.common.base.Optional;
 import com.google.common.io.Resources;
 import com.xpn.xwiki.web.Utils;
 
@@ -57,6 +58,7 @@ public class SardineAdapterTest extends AbstractComponentTest {
       webDav.create(test, content);
       try {
         assertTrue(webDav.get(test).isPresent());
+        // list
         List<DavResource> listed = webDav.list(Paths.get("/"));
         DavResource testResource = null;
         for (DavResource resource : listed) {
@@ -66,17 +68,30 @@ public class SardineAdapterTest extends AbstractComponentTest {
           }
         }
         assertNotNull("test file not in listing", testResource);
-
+        assertFalse("test file shouldnt be dir", testResource.isDirectory());
+        assertEquals("different mime type", "text/plain", testResource.getContentType());
         // update & load
         assertTrue("invalid data loaded", Arrays.equals(content, webDav.load(test)));
         content[1] = 0;
         assertFalse("content unchanged", Arrays.equals(content, webDav.load(test)));
         webDav.update(test, content);
         assertTrue("update did not work", Arrays.equals(content, webDav.load(test)));
-
       } finally { // delete
         webDav.delete(test);
         assertFalse(webDav.get(test).isPresent());
+      }
+
+      // createDir & delete
+      Path dir = Paths.get("dir");
+      webDav.createDirectory(dir);
+      try {
+        Optional<DavResource> dirResource = webDav.get(dir);
+        assertTrue(dirResource.isPresent());
+        assertTrue(dirResource.get().isDirectory());
+        webDav.createOrUpdate(dir.resolve(test), content);
+      } finally {
+        webDav.delete(dir);
+        assertFalse(webDav.get(dir).isPresent());
       }
     }
     verifyDefault();

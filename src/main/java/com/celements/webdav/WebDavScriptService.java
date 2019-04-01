@@ -96,6 +96,18 @@ public class WebDavScriptService implements ScriptService {
     }
   }
 
+  public boolean createDirectory(String dirPath) {
+    if (rightsAccess.isLoggedIn() && !isNullOrEmpty(dirPath)) {
+      try (WebDavConnection webDav = webDavService.connect()) {
+        webDav.createDirectory(Paths.get(dirPath));
+        return true;
+      } catch (Exception exc) {
+        LOGGER.warn("createDirectory - failed for path [{}]", dirPath, exc);
+      }
+    }
+    return false;
+  }
+
   public boolean create(String filePath, Attachment attachment) {
     if (rightsAccess.isLoggedIn() && !isNullOrEmpty(filePath) && (attachment != null)) {
       try (WebDavConnection webDav = webDavService.connect()) {

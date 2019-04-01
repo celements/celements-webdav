@@ -41,6 +41,8 @@ public interface WebDavService {
     @NotNull
     byte[] load(@NotNull Path filePath) throws IOException, DavResourceAccessException;
 
+    void createDirectory(@NotNull Path dirPath) throws IOException, DavResourceAccessException;
+
     void create(@NotNull Path filePath, @NotNull byte[] content) throws IOException,
         DavResourceAccessException;
 
