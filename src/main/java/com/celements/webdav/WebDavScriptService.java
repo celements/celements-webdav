@@ -44,7 +44,8 @@ public class WebDavScriptService implements ScriptService {
   public List<DavResource> list(String path) {
     List<DavResource> list = new ArrayList<>();
     if (checkWebDavRights() && !isNullOrEmpty(path)) {
-      try (WebDavConnection webDav = webDavService.connect()) {
+      try {
+        WebDavConnection webDav = webDavService.connect();
         list = webDav.list(Paths.get(path));
       } catch (Exception exc) {
         LOGGER.warn("list - failed for path [{}]", path, exc);
@@ -56,7 +57,8 @@ public class WebDavScriptService implements ScriptService {
   public DavResource get(String path) {
     DavResource resource = null;
     if (checkWebDavRights() && !isNullOrEmpty(path)) {
-      try (WebDavConnection webDav = webDavService.connect()) {
+      try {
+        WebDavConnection webDav = webDavService.connect();
         resource = webDav.get(Paths.get(path)).orNull();
       } catch (Exception exc) {
         LOGGER.warn("list - failed for path [{}]", path, exc);
@@ -68,7 +70,8 @@ public class WebDavScriptService implements ScriptService {
   public String loadAsString(String filePath) {
     String content = "";
     if (checkWebDavRights() && !isNullOrEmpty(filePath)) {
-      try (WebDavConnection webDav = webDavService.connect()) {
+      try {
+        WebDavConnection webDav = webDavService.connect();
         content = new String(webDav.load(Paths.get(filePath)));
       } catch (Exception exc) {
         LOGGER.warn("load - failed for path [{}]", filePath, exc);
@@ -79,7 +82,8 @@ public class WebDavScriptService implements ScriptService {
 
   public void download(String filePath) {
     if (checkWebDavRights() && !isNullOrEmpty(filePath)) {
-      try (WebDavConnection webDav = webDavService.connect()) {
+      try {
+        WebDavConnection webDav = webDavService.connect();
         Path path = Paths.get(filePath);
         Optional<DavResource> resource = webDav.get(path);
         if (resource.isPresent() && !resource.get().isDirectory()) {
@@ -101,7 +105,8 @@ public class WebDavScriptService implements ScriptService {
 
   public boolean createDirectory(String dirPath) {
     if (checkWebDavRights() && !isNullOrEmpty(dirPath)) {
-      try (WebDavConnection webDav = webDavService.connect()) {
+      try {
+        WebDavConnection webDav = webDavService.connect();
         webDav.createDirectory(Paths.get(dirPath));
         return true;
       } catch (Exception exc) {
@@ -113,7 +118,8 @@ public class WebDavScriptService implements ScriptService {
 
   public boolean create(String filePath, Attachment attachment) {
     if (checkWebDavRights() && !isNullOrEmpty(filePath) && (attachment != null)) {
-      try (WebDavConnection webDav = webDavService.connect()) {
+      try {
+        WebDavConnection webDav = webDavService.connect();
         webDav.create(Paths.get(filePath), attachment.getContent());
         return true;
       } catch (Exception exc) {
@@ -125,7 +131,8 @@ public class WebDavScriptService implements ScriptService {
 
   public boolean update(String filePath, Attachment attachment) {
     if (checkWebDavRights() && !isNullOrEmpty(filePath) && (attachment != null)) {
-      try (WebDavConnection webDav = webDavService.connect()) {
+      try {
+        WebDavConnection webDav = webDavService.connect();
         webDav.update(Paths.get(filePath), attachment.getContent());
         return true;
       } catch (Exception exc) {
@@ -137,7 +144,8 @@ public class WebDavScriptService implements ScriptService {
 
   public boolean createOrUpdate(String filePath, Attachment attachment) {
     if (checkWebDavRights() && !isNullOrEmpty(filePath) && (attachment != null)) {
-      try (WebDavConnection webDav = webDavService.connect()) {
+      try {
+        WebDavConnection webDav = webDavService.connect();
         webDav.createOrUpdate(Paths.get(filePath), attachment.getContent());
         return true;
       } catch (Exception exc) {
@@ -149,7 +157,8 @@ public class WebDavScriptService implements ScriptService {
 
   public boolean delete(final String path) {
     if (checkWebDavRights() && !isNullOrEmpty(path)) {
-      try (WebDavConnection webDav = webDavService.connect()) {
+      try {
+        WebDavConnection webDav = webDavService.connect();
         webDav.delete(Paths.get(path));
         return true;
       } catch (Exception exc) {

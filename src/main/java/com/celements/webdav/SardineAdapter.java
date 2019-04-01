@@ -120,7 +120,7 @@ public class SardineAdapter implements WebDavService, Initializable {
     checkNotNull(remoteLogin);
     String key = EC_KEY + "|" + Objects.hash(remoteLogin.getUrl(), remoteLogin.getUsername());
     Sardine sardine = (Sardine) execution.getContext().getProperty(key);
-    if (sardine == null) {
+    if ((sardine == null) || !isConnected(sardine, remoteLogin)) {
       execution.getContext().setProperty(key, sardine = newSecureSardineInstance(remoteLogin));
     } else {
       LOGGER.trace("getSardine - returning cached instance [{}]", sardine.hashCode());
@@ -143,7 +143,7 @@ public class SardineAdapter implements WebDavService, Initializable {
       // PE not needed because of following exists check already handles intial authentication
       sardine.disablePreemptiveAuthentication();
       sardine.enableCompression();
-      if (sardine.exists(remoteLogin.getUrl())) {
+      if (isConnected(sardine, remoteLogin)) {
         LOGGER.debug("newSecureSardineInstance - [{}] for [{}]", sardine.hashCode(), remoteLogin);
         return sardine;
       } else {
@@ -152,6 +152,14 @@ public class SardineAdapter implements WebDavService, Initializable {
     } catch (IOException | GeneralSecurityException exc) {
       throw new DavConnectionException("sardine instantiation failed for login: " + remoteLogin,
           exc);
+    }
+  }
+
+  private boolean isConnected(Sardine sardine, RemoteLogin remoteLogin) {
+    try {
+      return sardine.exists(remoteLogin.getUrl());
+    } catch (IOException ioe) {
+      return false;
     }
   }
 
