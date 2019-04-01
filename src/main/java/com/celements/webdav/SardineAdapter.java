@@ -1,21 +1,26 @@
 package com.celements.webdav;
 
 import static com.google.common.base.Preconditions.*;
-import static java.text.MessageFormat.format;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.MalformedURLException;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.security.GeneralSecurityException;
+import java.text.MessageFormat;
 import java.util.List;
 import java.util.Objects;
 
+import javax.annotation.Nullable;
 import javax.net.ssl.SSLContext;
+import javax.validation.constraints.NotNull;
 import javax.ws.rs.core.UriBuilder;
 import javax.ws.rs.core.UriBuilderException;
 
+import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.io.IOUtils;
 import org.apache.http.conn.socket.ConnectionSocketFactory;
 import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
@@ -40,12 +45,13 @@ import com.celements.convert.bean.XDocBeanLoader.BeanLoadException;
 import com.celements.model.classes.ClassDefinition;
 import com.celements.model.context.ModelContext;
 import com.celements.model.reference.RefBuilder;
+import com.celements.webdav.exception.DavConnectionException;
+import com.celements.webdav.exception.DavResourceAccessException;
 import com.github.sardine.DavResource;
 import com.github.sardine.Sardine;
 import com.github.sardine.impl.SardineException;
 import com.github.sardine.impl.SardineImpl;
 import com.google.common.base.Optional;
-import com.google.common.collect.FluentIterable;
 
 @Component(SardineAdapter.NAME)
 public class SardineAdapter implements WebDavService, Initializable {
@@ -76,140 +82,33 @@ public class SardineAdapter implements WebDavService, Initializable {
   }
 
   @Override
-  public RemoteLogin getConfiguredWebDavRemoteLogin() throws WebDavException {
+  public RemoteLogin getConfiguredRemoteLogin() throws ConfigurationException {
     DocumentReference webDavConfigDocRef = ConfigSourceUtils.getReferenceProperty(
-        "webdav.configdoc", DocumentReference.class).or(getDefaultWebDavConfigDocRef());
+        "webdav.configdoc", DocumentReference.class).or(getDefaultConfigDocRef());
     LOGGER.info("getConfiguredWebDavRemoteLogin - {}", webDavConfigDocRef);
     try {
       return remoteLoginLoader.load(webDavConfigDocRef);
     } catch (BeanLoadException exc) {
-      throw new WebDavException("illegal WebDAV config doc: " + webDavConfigDocRef, exc);
+      throw new ConfigurationException("illegal WebDAV config doc: " + webDavConfigDocRef, exc);
     }
   }
 
-  private DocumentReference getDefaultWebDavConfigDocRef() {
+  private DocumentReference getDefaultConfigDocRef() {
     return new RefBuilder().with(context.getWikiRef()).space("WebDAV").doc("Config").build(
         DocumentReference.class);
   }
 
   @Override
-  public List<DavResource> list(Path path) throws WebDavException {
-    return list(path, getConfiguredWebDavRemoteLogin());
+  public SardineConnection connect() throws DavConnectionException, MalformedURLException,
+      ConfigurationException {
+    return connect(getConfiguredRemoteLogin());
   }
 
   @Override
-  public List<DavResource> list(Path path, RemoteLogin remoteLogin) throws WebDavException {
-    URL url = buildCompleteUrl(remoteLogin, path);
-    try {
-      List<DavResource> list = getSardine(remoteLogin).list(url.toExternalForm());
-      LOGGER.info("list - {} : {}", url, list.size());
-      return list;
-    } catch (IOException exc) {
-      throw new WebDavException(url, remoteLogin, exc);
-    }
-  }
-
-  @Override
-  public Optional<DavResource> get(Path path) throws WebDavException {
-    return get(path, getConfiguredWebDavRemoteLogin());
-  }
-
-  @Override
-  public Optional<DavResource> get(Path path, RemoteLogin remoteLogin) throws WebDavException {
-    URL url = buildCompleteUrl(remoteLogin, path);
-    try {
-      Sardine sardine = getSardine(remoteLogin);
-      Optional<DavResource> resource = Optional.absent();
-      if (sardine.exists(url.toExternalForm())) {
-        resource = FluentIterable.from(sardine.list(url.toExternalForm())).first();
-      }
-      LOGGER.info("get - {} : {}", url, resource);
-      return resource;
-    } catch (IOException exc) {
-      throw new WebDavException(url, remoteLogin, exc);
-    }
-  }
-
-  @Override
-  public byte[] load(Path filePath) throws WebDavException {
-    return load(filePath, getConfiguredWebDavRemoteLogin());
-  }
-
-  @Override
-  public byte[] load(Path filePath, RemoteLogin remoteLogin) throws WebDavException {
-    URL url = buildCompleteUrl(remoteLogin, filePath);
-    try (InputStream is = getSardine(remoteLogin).get(url.toExternalForm())) {
-      byte[] content = IOUtils.toByteArray(is);
-      LOGGER.info("load - {} : {} bytes", url, content.length);
-      return content;
-    } catch (IOException exc) {
-      throw new WebDavException(url, remoteLogin, exc);
-    }
-  }
-
-  @Override
-  public boolean store(Path filePath, byte[] content) throws WebDavException {
-    return store(filePath, content, getConfiguredWebDavRemoteLogin());
-  }
-
-  @Override
-  public boolean store(Path filePath, byte[] content, RemoteLogin remoteLogin)
-      throws WebDavException {
-    boolean success = false;
-    URL url = buildCompleteUrl(remoteLogin, filePath);
-    try {
-      Sardine sardine = getSardine(remoteLogin);
-      if (!sardine.exists(url.toExternalForm())) {
-        getSardine(remoteLogin).put(url.toExternalForm(), content);
-        LOGGER.info("store - {}", url);
-        success = true;
-      } else {
-        LOGGER.debug("store - tried to overwrite [{}]", url);
-      }
-    } catch (SardineException exc) {
-      LOGGER.warn("store - failed on [{}] with login [{}]", url, remoteLogin, exc);
-    } catch (IOException exc) {
-      throw new WebDavException(url, remoteLogin, exc);
-    }
-    return success;
-  }
-
-  @Override
-  public boolean delete(Path path) throws WebDavException {
-    return delete(path, getConfiguredWebDavRemoteLogin());
-  }
-
-  @Override
-  public boolean delete(Path path, RemoteLogin remoteLogin) throws WebDavException {
-    boolean success = false;
-    URL url = buildCompleteUrl(remoteLogin, path);
-    try {
-      Sardine sardine = getSardine(remoteLogin);
-      if (sardine.exists(url.toExternalForm())) {
-        sardine.delete(url.toExternalForm());
-        LOGGER.info("delete - {}", url);
-        success = true;
-      } else {
-        LOGGER.debug("delete - tried to delete inexistent path [{}]", url);
-      }
-    } catch (SardineException exc) {
-      LOGGER.warn("delete - failed on [{}] with login [{}]", url, remoteLogin, exc);
-    } catch (IOException exc) {
-      throw new WebDavException(url, remoteLogin, exc);
-    }
-    return success;
-  }
-
-  private static URL buildCompleteUrl(RemoteLogin remoteLogin, Path path) throws WebDavException {
-    checkNotNull(remoteLogin);
-    checkNotNull(path);
-    try {
-      return UriBuilder.fromUri(remoteLogin.getUrl()).path(
-          path.normalize().toString()).build().toURL();
-    } catch (MalformedURLException | IllegalArgumentException | UriBuilderException exc) {
-      throw new WebDavException(format("unable to build url with base [{0}] and path [{1}]",
-          remoteLogin.getUrl(), path), exc);
-    }
+  public SardineConnection connect(RemoteLogin remoteLogin) throws DavConnectionException,
+      MalformedURLException {
+    URL baseUrl = new URL(remoteLogin.getUrl());
+    return new SardineConnection(getSardine(remoteLogin), baseUrl);
   }
 
   /**
@@ -217,7 +116,7 @@ public class SardineAdapter implements WebDavService, Initializable {
    * environment since it uses the org.apache.http.impl.conn.tsccm.ThreadSafeClientConnManager.
    * See <a href="https://github.com/lookfirst/sardine/wiki/UsageGuide#threading">Sardine Docu</a>.
    */
-  public Sardine getSardine(RemoteLogin remoteLogin) throws WebDavException {
+  public Sardine getSardine(RemoteLogin remoteLogin) throws DavConnectionException {
     checkNotNull(remoteLogin);
     String key = EC_KEY + "|" + Objects.hash(remoteLogin.getUrl(), remoteLogin.getUsername());
     Sardine sardine = (Sardine) execution.getContext().getProperty(key);
@@ -229,7 +128,8 @@ public class SardineAdapter implements WebDavService, Initializable {
     return sardine;
   }
 
-  private Sardine newSecureSardineInstance(final RemoteLogin remoteLogin) throws WebDavException {
+  private Sardine newSecureSardineInstance(final RemoteLogin remoteLogin)
+      throws DavConnectionException {
     try {
       final SSLContext sslCtx = SSLContexts.custom().loadTrustMaterial(getTrustStoreUrl(), null,
           new TrustSelfSignedStrategy()).build();
@@ -247,10 +147,11 @@ public class SardineAdapter implements WebDavService, Initializable {
         LOGGER.debug("newSecureSardineInstance - [{}] for [{}]", sardine.hashCode(), remoteLogin);
         return sardine;
       } else {
-        throw new WebDavException("illegal remote login definition: " + remoteLogin);
+        throw new DavConnectionException("illegal remote login definition: " + remoteLogin);
       }
     } catch (IOException | GeneralSecurityException exc) {
-      throw new WebDavException("sardine instantiation failed for login: " + remoteLogin, exc);
+      throw new DavConnectionException("sardine instantiation failed for login: " + remoteLogin,
+          exc);
     }
   }
 
@@ -258,6 +159,175 @@ public class SardineAdapter implements WebDavService, Initializable {
     String cacertsPath = cfgSrc.getProperty("celements.security.cacerts");
     LOGGER.debug("getTrustStoreUrl - cacertsPath [{}]", cacertsPath);
     return context.getXWikiContext().getWiki().getResource(cacertsPath);
+  }
+
+  public class SardineConnection implements WebDavConnection, AutoCloseable {
+
+    private final Sardine sardine;
+    private final URL baseUrl;
+
+    private SardineConnection(Sardine sardine, URL baseUrl) {
+      this.sardine = checkNotNull(sardine);
+      this.baseUrl = checkNotNull(baseUrl);
+    }
+
+    @Override
+    public List<DavResource> list(Path path) throws IOException, DavResourceAccessException {
+      URL url = buildCompleteUrl(path);
+      try {
+        List<DavResource> list = sardine.list(url.toExternalForm());
+        LOGGER.info("list - {} : {}", url, list.size());
+        return list;
+      } catch (SardineException sardineExc) {
+        throwResourceAccessException(url, sardineExc);
+        throw sardineExc;
+      }
+    }
+
+    @Override
+    public Optional<DavResource> get(Path path) throws IOException {
+      URL url = buildCompleteUrl(path);
+      Optional<DavResource> resource = Optional.absent();
+      if (sardine.exists(url.toExternalForm())) {
+        resource = Optional.fromNullable(getDavResource(url));
+      }
+      LOGGER.info("get - {} : {}", url, resource);
+      return resource;
+    }
+
+    @Nullable
+    private DavResource getDavResource(URL url) throws IOException {
+      DavResource ret = null;
+      Path path = Paths.get(url.getPath());
+      for (DavResource resource : sardine.list(url.toExternalForm())) {
+        if (path.equals(Paths.get(resource.getPath()))) {
+          ret = resource;
+        }
+      }
+      return ret;
+    }
+
+    @NotNull
+    private DavResource expectDavFile(URL url) throws IOException, DavResourceAccessException {
+      DavResource resource = getDavResource(url);
+      if ((resource != null) && !resource.isDirectory()) {
+        return resource;
+      } else {
+        throw new DavResourceAccessException("resource not file [" + url + "] with type ["
+            + ((resource != null) ? resource.getContentType() : null) + "]");
+      }
+    }
+
+    @Override
+    public byte[] load(Path filePath) throws IOException, DavResourceAccessException {
+      URL url = buildCompleteUrl(filePath);
+      try {
+        expectDavFile(url);
+        try (InputStream is = sardine.get(url.toExternalForm())) {
+          byte[] content = IOUtils.toByteArray(is);
+          LOGGER.info("load - {} : {} bytes", url, content.length);
+          return content;
+        }
+      } catch (SardineException sardineExc) {
+        throwResourceAccessException(url, sardineExc);
+        throw sardineExc;
+      }
+    }
+
+    @Override
+    public void create(Path filePath, byte[] content) throws IOException,
+        DavResourceAccessException {
+      URL url = buildCompleteUrl(filePath);
+      try {
+        if (!sardine.exists(url.toExternalForm())) {
+          sardine.put(url.toExternalForm(), content);
+          LOGGER.info("create - {}", url);
+        } else {
+          throw new DavResourceAccessException("Already exists - " + url);
+        }
+      } catch (SardineException sardineExc) {
+        throwResourceAccessException(url, sardineExc);
+        throw sardineExc;
+      }
+    }
+
+    @Override
+    public void update(Path filePath, byte[] content) throws IOException,
+        DavResourceAccessException {
+      URL url = buildCompleteUrl(filePath);
+      try {
+        expectDavFile(url);
+        sardine.put(url.toExternalForm(), content);
+        LOGGER.info("update - {}", url);
+      } catch (SardineException sardineExc) {
+        throwResourceAccessException(url, sardineExc);
+        throw sardineExc;
+      }
+    }
+
+    @Override
+    public void createOrUpdate(Path filePath, byte[] content) throws IOException,
+        DavResourceAccessException {
+      URL url = buildCompleteUrl(filePath);
+      try {
+        sardine.put(url.toExternalForm(), content);
+        LOGGER.info("createOrUpdate - {}", url);
+      } catch (SardineException sardineExc) {
+        throwResourceAccessException(url, sardineExc);
+        throw sardineExc;
+      }
+    }
+
+    @Override
+    public void delete(Path path) throws IOException, DavResourceAccessException {
+      URL url = buildCompleteUrl(path);
+      try {
+        sardine.delete(url.toExternalForm());
+        LOGGER.info("delete - {}", url);
+      } catch (SardineException sardineExc) {
+        throwResourceAccessException(url, sardineExc);
+        throw sardineExc;
+      }
+    }
+
+    @Override
+    public void close() throws Exception {
+      sardine.shutdown();
+    }
+
+    private URL buildCompleteUrl(Path path) {
+      checkNotNull(path);
+      try {
+        return UriBuilder.fromUri(baseUrl.toURI()).path(
+            path.normalize().toString()).build().toURL();
+      } catch (URISyntaxException | UriBuilderException | MalformedURLException exc) {
+        // this shouldn't happen since baseUrl and path are already well defined objects
+        throw new IllegalArgumentException(MessageFormat.format("unable to build url with "
+            + "base [{0}] and path [{1}]: [{2}]", baseUrl, path, exc.getMessage()), exc);
+      }
+    }
+
+  }
+
+  /**
+   * throws a {@link DavResourceAccessException} for specific HTTP status codes concerning errors
+   * for the given path. A different path may not cause such errors. More general error codes
+   * should result in an {@link IOException}.
+   */
+  private static void throwResourceAccessException(URL url, SardineException exc)
+      throws DavResourceAccessException {
+    switch (exc.getStatusCode()) {
+      case 403: // Forbidden
+        throw new DavResourceAccessException("Forbidden - " + url, exc);
+      case 404: // Not Found
+        throw new DavResourceAccessException("Not Found - " + url, exc);
+      case 409: // Conflict
+        throw new DavResourceAccessException("Conflict - " + url, exc);
+      case 410: // Gone
+        throw new DavResourceAccessException("Gone - " + url, exc);
+      case 418: // I'm a teapot - April Fools' Day 2019 ;)
+        throw new DavResourceAccessException("Teapot - " + url, exc);
+    }
   }
 
 }

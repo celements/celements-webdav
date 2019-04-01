@@ -1,13 +1,18 @@
 package com.celements.webdav;
 
+import java.io.IOException;
+import java.net.MalformedURLException;
 import java.nio.file.Path;
 import java.util.List;
 
 import javax.validation.constraints.NotNull;
 
+import org.apache.commons.configuration.ConfigurationException;
 import org.xwiki.component.annotation.ComponentRole;
 
 import com.celements.auth.RemoteLogin;
+import com.celements.webdav.exception.DavConnectionException;
+import com.celements.webdav.exception.DavResourceAccessException;
 import com.github.sardine.DavResource;
 import com.google.common.base.Optional;
 
@@ -15,35 +20,38 @@ import com.google.common.base.Optional;
 public interface WebDavService {
 
   @NotNull
-  RemoteLogin getConfiguredWebDavRemoteLogin() throws WebDavException;
+  RemoteLogin getConfiguredRemoteLogin() throws ConfigurationException;
 
   @NotNull
-  List<DavResource> list(@NotNull Path path) throws WebDavException;
+  WebDavConnection connect() throws DavConnectionException, MalformedURLException,
+      ConfigurationException;
 
   @NotNull
-  List<DavResource> list(@NotNull Path path, @NotNull RemoteLogin remoteLogin)
-      throws WebDavException;
+  WebDavConnection connect(@NotNull RemoteLogin remoteLogin) throws DavConnectionException,
+      MalformedURLException;
 
-  @NotNull
-  Optional<DavResource> get(@NotNull Path path) throws WebDavException;
+  interface WebDavConnection {
 
-  @NotNull
-  Optional<DavResource> get(@NotNull Path path, @NotNull RemoteLogin remoteLogin)
-      throws WebDavException;
+    @NotNull
+    List<DavResource> list(@NotNull Path path) throws IOException, DavResourceAccessException;
 
-  @NotNull
-  byte[] load(@NotNull Path filePath) throws WebDavException;
+    @NotNull
+    Optional<DavResource> get(@NotNull Path path) throws IOException;
 
-  @NotNull
-  byte[] load(@NotNull Path filePath, @NotNull RemoteLogin remoteLogin) throws WebDavException;
+    @NotNull
+    byte[] load(@NotNull Path filePath) throws IOException, DavResourceAccessException;
 
-  boolean store(@NotNull Path filePath, @NotNull byte[] content) throws WebDavException;
+    void create(@NotNull Path filePath, @NotNull byte[] content) throws IOException,
+        DavResourceAccessException;
 
-  boolean store(@NotNull Path filePath, @NotNull byte[] content, @NotNull RemoteLogin remoteLogin)
-      throws WebDavException;
+    void update(@NotNull Path filePath, @NotNull byte[] content) throws IOException,
+        DavResourceAccessException;
 
-  boolean delete(@NotNull Path path) throws WebDavException;
+    void createOrUpdate(@NotNull Path filePath, @NotNull byte[] content) throws IOException,
+        DavResourceAccessException;
 
-  boolean delete(@NotNull Path path, @NotNull RemoteLogin remoteLogin) throws WebDavException;
+    void delete(@NotNull Path path) throws IOException, DavResourceAccessException;
+
+  }
 
 }

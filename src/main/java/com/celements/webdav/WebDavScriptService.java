@@ -18,10 +18,10 @@ import org.xwiki.script.service.ScriptService;
 
 import com.celements.model.context.ModelContext;
 import com.celements.rights.access.IRightsAccessFacadeRole;
+import com.celements.webdav.WebDavService.WebDavConnection;
 import com.github.sardine.DavResource;
 import com.google.common.base.Optional;
 import com.xpn.xwiki.api.Attachment;
-import com.xpn.xwiki.web.Utils;
 import com.xpn.xwiki.web.XWikiResponse;
 
 @Component("webdav")
@@ -42,7 +42,8 @@ public class WebDavScriptService implements ScriptService {
     List<DavResource> list = new ArrayList<>();
     try {
       if (rightsAccess.isLoggedIn() && !isNullOrEmpty(path)) {
-        list = webDavService.list(Paths.get(path));
+        WebDavConnection webDav = webDavService.connect();
+        list = webDav.list(Paths.get(path));
       }
     } catch (Exception exc) {
       LOGGER.warn("list - failed for path [{}]", path, exc);
@@ -54,7 +55,8 @@ public class WebDavScriptService implements ScriptService {
     DavResource resource = null;
     try {
       if (rightsAccess.isLoggedIn() && !isNullOrEmpty(path)) {
-        resource = webDavService.get(Paths.get(path)).orNull();
+        WebDavConnection webDav = webDavService.connect();
+        resource = webDav.get(Paths.get(path)).orNull();
       }
     } catch (Exception exc) {
       LOGGER.warn("list - failed for path [{}]", path, exc);
@@ -66,7 +68,8 @@ public class WebDavScriptService implements ScriptService {
     String content = "";
     try {
       if (rightsAccess.isLoggedIn() && !isNullOrEmpty(filePath)) {
-        content = new String(webDavService.load(Paths.get(filePath)));
+        WebDavConnection webDav = webDavService.connect();
+        content = new String(webDav.load(Paths.get(filePath)));
       }
     } catch (Exception exc) {
       LOGGER.warn("load - failed for path [{}]", filePath, exc);
@@ -78,9 +81,10 @@ public class WebDavScriptService implements ScriptService {
     try {
       if (rightsAccess.isLoggedIn() && !isNullOrEmpty(filePath)) {
         Path path = Paths.get(filePath);
-        Optional<DavResource> resource = webDavService.get(path);
+        WebDavConnection webDav = webDavService.connect();
+        Optional<DavResource> resource = webDav.get(path);
         if (resource.isPresent() && !resource.get().isDirectory()) {
-          byte[] content = webDavService.load(path);
+          byte[] content = webDav.load(path);
           XWikiResponse response = context.getResponse().get();
           response.setCharacterEncoding("");
           response.setContentType(resource.get().getContentType());
@@ -96,13 +100,41 @@ public class WebDavScriptService implements ScriptService {
     }
   }
 
-  public boolean store(String filePath, Attachment attachment) {
+  public boolean create(String filePath, Attachment attachment) {
     try {
-      if (rightsAccess.isAdmin() && !isNullOrEmpty(filePath) && (attachment != null)) {
-        return webDavService.store(Paths.get(filePath), attachment.getContent());
+      if (rightsAccess.isLoggedIn() && !isNullOrEmpty(filePath) && (attachment != null)) {
+        WebDavConnection webDav = webDavService.connect();
+        webDav.create(Paths.get(filePath), attachment.getContent());
+        return true;
       }
     } catch (Exception exc) {
-      LOGGER.warn("store - failed for path [{}]", filePath, exc);
+      LOGGER.warn("create - failed for path [{}]", filePath, exc);
+    }
+    return false;
+  }
+
+  public boolean update(String filePath, Attachment attachment) {
+    try {
+      if (rightsAccess.isLoggedIn() && !isNullOrEmpty(filePath) && (attachment != null)) {
+        WebDavConnection webDav = webDavService.connect();
+        webDav.update(Paths.get(filePath), attachment.getContent());
+        return true;
+      }
+    } catch (Exception exc) {
+      LOGGER.warn("update - failed for path [{}]", filePath, exc);
+    }
+    return false;
+  }
+
+  public boolean createOrUpdate(String filePath, Attachment attachment) {
+    try {
+      if (rightsAccess.isLoggedIn() && !isNullOrEmpty(filePath) && (attachment != null)) {
+        WebDavConnection webDav = webDavService.connect();
+        webDav.createOrUpdate(Paths.get(filePath), attachment.getContent());
+        return true;
+      }
+    } catch (Exception exc) {
+      LOGGER.warn("createOrUpdate - failed for path [{}]", filePath, exc);
     }
     return false;
   }
@@ -110,7 +142,9 @@ public class WebDavScriptService implements ScriptService {
   public boolean delete(final String path) {
     try {
       if (rightsAccess.isAdmin() && !isNullOrEmpty(path)) {
-        return webDavService.delete(Paths.get(path));
+        WebDavConnection webDav = webDavService.connect();
+        webDav.delete(Paths.get(path));
+        return true;
       }
     } catch (Exception exc) {
       LOGGER.warn("delete - failed for path [{}]", path, exc);
@@ -118,12 +152,11 @@ public class WebDavScriptService implements ScriptService {
     return false;
   }
 
-  public SardineAdapter debugSardine() throws Exception {
-    SardineAdapter sardine = null;
+  public WebDavConnection debug() throws Exception {
     if (rightsAccess.isSuperAdmin()) {
-      sardine = (SardineAdapter) Utils.getComponent(WebDavService.class, SardineAdapter.NAME);
+      return webDavService.connect();
     }
-    return sardine;
+    return null;
   }
 
 }
