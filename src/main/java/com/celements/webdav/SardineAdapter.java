@@ -171,6 +171,17 @@ public class SardineAdapter implements WebDavService, Initializable {
       this.baseUrl = checkNotNull(baseUrl);
     }
 
+    private URL buildCompleteUrl(Path path) {
+      try {
+        return UriBuilder.fromUri(baseUrl.toURI()).path(checkNotNull(
+            path).normalize().toString()).build().toURL();
+      } catch (URISyntaxException | UriBuilderException | MalformedURLException exc) {
+        // this shouldn't happen since baseUrl and path are already well defined objects
+        throw new IllegalArgumentException(MessageFormat.format("unable to build url with "
+            + "base [{0}] and path [{1}]: [{2}]", baseUrl, path, exc.getMessage()), exc);
+      }
+    }
+
     @Override
     public List<DavResource> list(Path path) throws IOException, DavResourceAccessException {
       URL url = buildCompleteUrl(path);
@@ -306,18 +317,6 @@ public class SardineAdapter implements WebDavService, Initializable {
     @Override
     public void close() throws Exception {
       sardine.shutdown();
-    }
-
-    private URL buildCompleteUrl(Path path) {
-      checkNotNull(path);
-      try {
-        return UriBuilder.fromUri(baseUrl.toURI()).path(
-            path.normalize().toString()).build().toURL();
-      } catch (URISyntaxException | UriBuilderException | MalformedURLException exc) {
-        // this shouldn't happen since baseUrl and path are already well defined objects
-        throw new IllegalArgumentException(MessageFormat.format("unable to build url with "
-            + "base [{0}] and path [{1}]: [{2}]", baseUrl, path, exc.getMessage()), exc);
-      }
     }
 
   }
