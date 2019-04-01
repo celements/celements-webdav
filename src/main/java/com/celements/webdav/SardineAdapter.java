@@ -325,7 +325,7 @@ public class SardineAdapter implements WebDavService, Initializable {
         throw new DavResourceAccessException("Conflict - " + url, exc);
       case 410: // Gone
         throw new DavResourceAccessException("Gone - " + url, exc);
-      case 418: // I'm a teapot - April Fools' Day 2019 ;)
+      case 418: // I'm a teapot - happy April Fools' Day 2019 ;)
         throw new DavResourceAccessException("Teapot - " + url, exc);
     }
   }
