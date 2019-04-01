@@ -10,13 +10,16 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
+import org.apache.commons.configuration.ConfigurationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.xwiki.component.annotation.Component;
 import org.xwiki.component.annotation.Requirement;
+import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.script.service.ScriptService;
 
 import com.celements.model.context.ModelContext;
+import com.celements.rights.access.EAccessLevel;
 import com.celements.rights.access.IRightsAccessFacadeRole;
 import com.celements.webdav.WebDavService.WebDavConnection;
 import com.github.sardine.DavResource;
@@ -40,7 +43,7 @@ public class WebDavScriptService implements ScriptService {
 
   public List<DavResource> list(String path) {
     List<DavResource> list = new ArrayList<>();
-    if (rightsAccess.isLoggedIn() && !isNullOrEmpty(path)) {
+    if (checkWebDavRights() && !isNullOrEmpty(path)) {
       try (WebDavConnection webDav = webDavService.connect()) {
         list = webDav.list(Paths.get(path));
       } catch (Exception exc) {
@@ -52,7 +55,7 @@ public class WebDavScriptService implements ScriptService {
 
   public DavResource get(String path) {
     DavResource resource = null;
-    if (rightsAccess.isLoggedIn() && !isNullOrEmpty(path)) {
+    if (checkWebDavRights() && !isNullOrEmpty(path)) {
       try (WebDavConnection webDav = webDavService.connect()) {
         resource = webDav.get(Paths.get(path)).orNull();
       } catch (Exception exc) {
@@ -64,7 +67,7 @@ public class WebDavScriptService implements ScriptService {
 
   public String loadAsString(String filePath) {
     String content = "";
-    if (rightsAccess.isLoggedIn() && !isNullOrEmpty(filePath)) {
+    if (checkWebDavRights() && !isNullOrEmpty(filePath)) {
       try (WebDavConnection webDav = webDavService.connect()) {
         content = new String(webDav.load(Paths.get(filePath)));
       } catch (Exception exc) {
@@ -75,7 +78,7 @@ public class WebDavScriptService implements ScriptService {
   }
 
   public void download(String filePath) {
-    if (rightsAccess.isLoggedIn() && !isNullOrEmpty(filePath)) {
+    if (checkWebDavRights() && !isNullOrEmpty(filePath)) {
       try (WebDavConnection webDav = webDavService.connect()) {
         Path path = Paths.get(filePath);
         Optional<DavResource> resource = webDav.get(path);
@@ -97,7 +100,7 @@ public class WebDavScriptService implements ScriptService {
   }
 
   public boolean createDirectory(String dirPath) {
-    if (rightsAccess.isLoggedIn() && !isNullOrEmpty(dirPath)) {
+    if (checkWebDavRights() && !isNullOrEmpty(dirPath)) {
       try (WebDavConnection webDav = webDavService.connect()) {
         webDav.createDirectory(Paths.get(dirPath));
         return true;
@@ -109,7 +112,7 @@ public class WebDavScriptService implements ScriptService {
   }
 
   public boolean create(String filePath, Attachment attachment) {
-    if (rightsAccess.isLoggedIn() && !isNullOrEmpty(filePath) && (attachment != null)) {
+    if (checkWebDavRights() && !isNullOrEmpty(filePath) && (attachment != null)) {
       try (WebDavConnection webDav = webDavService.connect()) {
         webDav.create(Paths.get(filePath), attachment.getContent());
         return true;
@@ -121,7 +124,7 @@ public class WebDavScriptService implements ScriptService {
   }
 
   public boolean update(String filePath, Attachment attachment) {
-    if (rightsAccess.isLoggedIn() && !isNullOrEmpty(filePath) && (attachment != null)) {
+    if (checkWebDavRights() && !isNullOrEmpty(filePath) && (attachment != null)) {
       try (WebDavConnection webDav = webDavService.connect()) {
         webDav.update(Paths.get(filePath), attachment.getContent());
         return true;
@@ -133,7 +136,7 @@ public class WebDavScriptService implements ScriptService {
   }
 
   public boolean createOrUpdate(String filePath, Attachment attachment) {
-    if (rightsAccess.isLoggedIn() && !isNullOrEmpty(filePath) && (attachment != null)) {
+    if (checkWebDavRights() && !isNullOrEmpty(filePath) && (attachment != null)) {
       try (WebDavConnection webDav = webDavService.connect()) {
         webDav.createOrUpdate(Paths.get(filePath), attachment.getContent());
         return true;
@@ -145,7 +148,7 @@ public class WebDavScriptService implements ScriptService {
   }
 
   public boolean delete(final String path) {
-    if (rightsAccess.isAdmin() && !isNullOrEmpty(path)) {
+    if (checkWebDavRights() && !isNullOrEmpty(path)) {
       try (WebDavConnection webDav = webDavService.connect()) {
         webDav.delete(Paths.get(path));
         return true;
@@ -161,6 +164,16 @@ public class WebDavScriptService implements ScriptService {
       return webDavService.connect();
     }
     return null;
+  }
+
+  private boolean checkWebDavRights() {
+    try {
+      DocumentReference cfgDocRef = webDavService.getConfiguredRemoteLogin().getDocumentReference();
+      return rightsAccess.hasAccessLevel(cfgDocRef, EAccessLevel.VIEW);
+    } catch (ConfigurationException exc) {
+      LOGGER.warn("checkWebDavRights failed", exc);
+      return false;
+    }
   }
 
 }
