@@ -5,7 +5,9 @@ import static org.easymock.EasyMock.*;
 import static org.junit.Assert.*;
 
 import java.net.MalformedURLException;
+import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.List;
 
 import org.apache.commons.io.IOUtils;
@@ -16,6 +18,7 @@ import org.xwiki.configuration.ConfigurationSource;
 import com.celements.auth.RemoteLogin;
 import com.celements.common.test.AbstractComponentTest;
 import com.celements.configuration.CelementsFromWikiConfigurationSource;
+import com.celements.webdav.SardineAdapter.SardineConnection;
 import com.github.sardine.DavResource;
 import com.google.common.io.Resources;
 import com.xpn.xwiki.web.Utils;
@@ -42,31 +45,41 @@ public class SardineAdapterTest extends AbstractComponentTest {
   // do not add to automatic test suite
   public void test_remote() throws Exception {
     RemoteLogin remoteLogin = getNextcloudRemoteLogin();
-    String test = "test.txt";
-    byte[] content = IOUtils.toByteArray(Resources.getResource(test).openStream());
+    Path test = Paths.get("test.txt");
+    byte[] content = IOUtils.toByteArray(Resources.getResource(test.toString()).openStream());
+
     replayDefault();
-    assertNotNull(sardineAdapter.getSardine(remoteLogin));
-    verifyDefault();
+    try (SardineConnection webDav = sardineAdapter.connect(remoteLogin)) {
+      assertNotNull(webDav);
 
-    boolean stored = sardineAdapter.store(Paths.get(test), content, remoteLogin);
-    List<DavResource> listed = sardineAdapter.list(Paths.get("/"), remoteLogin);
-    byte[] loaded = sardineAdapter.load(Paths.get(test), remoteLogin);
-    boolean deleted = sardineAdapter.delete(Paths.get(test), remoteLogin);
+      // create & get
+      assertFalse(webDav.get(test).isPresent());
+      webDav.create(test, content);
+      try {
+        assertTrue(webDav.get(test).isPresent());
+        List<DavResource> listed = webDav.list(Paths.get("/"));
+        DavResource testResource = null;
+        for (DavResource resource : listed) {
+          System.out.println(resource.getPath() + " - " + resource.getContentType());
+          if (test.equals(Paths.get(resource.getName()))) {
+            testResource = resource;
+          }
+        }
+        assertNotNull("test file not in listing", testResource);
 
-    DavResource davTest = null;
-    for (DavResource dav : listed) {
-      System.out.println(dav.getPath() + " - " + dav.getContentType());
-      if (dav.getName().equals(test)) {
-        davTest = dav;
+        // update & load
+        assertTrue("invalid data loaded", Arrays.equals(content, webDav.load(test)));
+        content[1] = 0;
+        assertFalse("content unchanged", Arrays.equals(content, webDav.load(test)));
+        webDav.update(test, content);
+        assertTrue("update did not work", Arrays.equals(content, webDav.load(test)));
+
+      } finally { // delete
+        webDav.delete(test);
+        assertFalse(webDav.get(test).isPresent());
       }
     }
-    assertNotNull("test file not in listing", davTest);
-    assertEquals("invalid data loaded", content.length, loaded.length);
-    for (int i = 0; i < content.length; i++) {
-      assertEquals("invalid data loaded", content[i], loaded[i]);
-    }
-    assertTrue("did not store", stored);
-    assertTrue("did not delete", deleted);
+    verifyDefault();
   }
 
   private RemoteLogin getNextcloudRemoteLogin() throws MalformedURLException {
