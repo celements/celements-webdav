@@ -3,11 +3,11 @@
   <parent>
     <groupId>com.celements</groupId>
     <artifactId>celements</artifactId>
-    <version>3.3</version>
+    <version>4.0-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
   <artifactId>celements-webdav</artifactId>
-  <version>3.0-SNAPSHOT</version>
+  <version>4.0-SNAPSHOT</version>
   <description>Celements WebDAV Client</description>
   <dependencies>
 
@@ -15,19 +15,19 @@
     <dependency>
       <groupId>com.celements</groupId>
       <artifactId>celements-xwiki-core</artifactId>
-      <version>3.7</version>
+      <version>4.0-SNAPSHOT</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>com.celements</groupId>
       <artifactId>celements-model</artifactId>
-      <version>3.16</version>
+      <version>4.0-SNAPSHOT</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
       <groupId>com.celements</groupId>
       <artifactId>celements-core</artifactId>
-      <version>3.11</version>
+      <version>4.0-SNAPSHOT</version>
       <scope>provided</scope>
     </dependency>
 
