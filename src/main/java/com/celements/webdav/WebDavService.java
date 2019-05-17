@@ -54,6 +54,9 @@ public interface WebDavService {
 
     void delete(@NotNull Path path) throws IOException, DavResourceAccessException;
 
+    @Override
+    void close() throws IOException;
+
   }
 
 }

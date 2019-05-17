@@ -323,7 +323,7 @@ public class SardineAdapter implements WebDavService, Initializable {
     }
 
     @Override
-    public void close() throws Exception {
+    public void close() throws IOException {
       sardine.shutdown();
     }
 
