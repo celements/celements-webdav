@@ -13,6 +13,7 @@ import java.security.GeneralSecurityException;
 import java.text.MessageFormat;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 import javax.annotation.Nullable;
 import javax.net.ssl.SSLContext;
@@ -51,7 +52,6 @@ import com.github.sardine.DavResource;
 import com.github.sardine.Sardine;
 import com.github.sardine.impl.SardineException;
 import com.github.sardine.impl.SardineImpl;
-import com.google.common.base.Optional;
 
 @Component(SardineAdapter.NAME)
 public class SardineAdapter implements WebDavService, Initializable {
@@ -85,7 +85,7 @@ public class SardineAdapter implements WebDavService, Initializable {
   public RemoteLogin getConfiguredRemoteLogin() throws ConfigurationException {
     DocumentReference webDavConfigDocRef = ConfigSourceUtils.getReferenceProperty(
         "webdav.configdoc", DocumentReference.class).or(getDefaultConfigDocRef());
-    LOGGER.info("getConfiguredWebDavRemoteLogin - {}", webDavConfigDocRef);
+    LOGGER.info("getConfiguredRemoteLogin - {}", webDavConfigDocRef);
     try {
       return remoteLoginLoader.load(webDavConfigDocRef);
     } catch (BeanLoadException exc) {
@@ -206,9 +206,9 @@ public class SardineAdapter implements WebDavService, Initializable {
     @Override
     public Optional<DavResource> get(Path path) throws IOException {
       URL url = buildCompleteUrl(path);
-      Optional<DavResource> resource = Optional.absent();
+      Optional<DavResource> resource = Optional.empty();
       if (sardine.exists(url.toExternalForm())) {
-        resource = Optional.fromNullable(getDavResource(url));
+        resource = Optional.ofNullable(getDavResource(url));
       }
       LOGGER.info("get - {} : {}", url, resource);
       return resource;
@@ -258,8 +258,11 @@ public class SardineAdapter implements WebDavService, Initializable {
         DavResourceAccessException {
       URL url = buildCompleteUrl(dirPath);
       try {
-        sardine.createDirectory(url.toExternalForm());
-        LOGGER.info("createDirectory - {}", url);
+        if (!sardine.exists(url.toExternalForm())) {
+          createDirectory(dirPath.getParent());
+          sardine.createDirectory(url.toExternalForm());
+          LOGGER.info("createDirectory - {}", url);
+        }
       } catch (SardineException sardineExc) {
         throwResourceAccessException(url, sardineExc);
         throw sardineExc;

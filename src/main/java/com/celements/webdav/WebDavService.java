@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Optional;
 
 import javax.validation.constraints.NotNull;
 
@@ -14,7 +15,6 @@ import com.celements.auth.RemoteLogin;
 import com.celements.webdav.exception.DavConnectionException;
 import com.celements.webdav.exception.DavResourceAccessException;
 import com.github.sardine.DavResource;
-import com.google.common.base.Optional;
 
 @ComponentRole
 public interface WebDavService {

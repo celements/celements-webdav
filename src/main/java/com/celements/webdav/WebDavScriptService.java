@@ -9,6 +9,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 
 import org.apache.commons.configuration.ConfigurationException;
 import org.slf4j.Logger;
@@ -24,7 +25,6 @@ import com.celements.rights.access.IRightsAccessFacadeRole;
 import com.celements.webdav.WebDavService.WebDavConnection;
 import com.celements.webdav.exception.DavResourceAccessException;
 import com.github.sardine.DavResource;
-import com.google.common.base.Optional;
 import com.xpn.xwiki.api.Attachment;
 import com.xpn.xwiki.web.XWikiResponse;
 
@@ -62,7 +62,7 @@ public class WebDavScriptService implements ScriptService {
     if (checkWebDavRights() && !isNullOrEmpty(path)) {
       try {
         WebDavConnection webDav = webDavService.connect();
-        resource = webDav.get(Paths.get(path)).orNull();
+        resource = webDav.get(Paths.get(path)).orElse(null);
       } catch (Exception exc) {
         LOGGER.warn("get - failed for path [{}]", path, exc);
       }

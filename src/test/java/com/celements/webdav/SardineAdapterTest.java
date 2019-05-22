@@ -9,6 +9,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
 import org.apache.commons.io.IOUtils;
 import org.junit.Before;
@@ -20,7 +21,6 @@ import com.celements.common.test.AbstractComponentTest;
 import com.celements.configuration.CelementsFromWikiConfigurationSource;
 import com.celements.webdav.SardineAdapter.SardineConnection;
 import com.github.sardine.DavResource;
-import com.google.common.base.Optional;
 import com.google.common.io.Resources;
 import com.xpn.xwiki.web.Utils;
 
