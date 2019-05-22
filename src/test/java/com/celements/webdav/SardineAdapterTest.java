@@ -5,6 +5,7 @@ import static org.easymock.EasyMock.*;
 import static org.junit.Assert.*;
 
 import java.net.MalformedURLException;
+import java.net.URL;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
@@ -15,12 +16,14 @@ import org.apache.commons.io.IOUtils;
 import org.junit.Before;
 import org.junit.Test;
 import org.xwiki.configuration.ConfigurationSource;
+import org.xwiki.context.Execution;
 
 import com.celements.auth.RemoteLogin;
 import com.celements.common.test.AbstractComponentTest;
 import com.celements.configuration.CelementsFromWikiConfigurationSource;
 import com.celements.webdav.SardineAdapter.SardineConnection;
 import com.github.sardine.DavResource;
+import com.github.sardine.Sardine;
 import com.google.common.io.Resources;
 import com.xpn.xwiki.web.Utils;
 
@@ -34,6 +37,43 @@ public class SardineAdapterTest extends AbstractComponentTest {
         getConfigurationSource());
     sardineAdapter = (SardineAdapter) Utils.getComponent(WebDavService.class);
     assertNotNull(sardineAdapter);
+  }
+
+  @Test
+  public void test_buildCompleteUrl() throws Exception {
+    URL baseUrl = new URL("http://celements.com/");
+    try (SardineConnection conn = sardineAdapter.new SardineConnection(
+        createMockAndAddToDefault(Sardine.class), baseUrl)) {
+      assertEquals("http://celements.com/dir",
+          conn.buildCompleteUrl(Paths.get("dir")).toExternalForm());
+      assertEquals("http://celements.com/dir/sub",
+          conn.buildCompleteUrl(Paths.get("/", "dir", "sub")).toExternalForm());
+    }
+  }
+
+  @Test
+  public void test_buildCompleteUrl_withBasePath() throws Exception {
+    URL baseUrl = new URL("http://celements.com/main");
+    try (SardineConnection conn = sardineAdapter.new SardineConnection(
+        createMockAndAddToDefault(Sardine.class), baseUrl)) {
+      assertEquals("http://celements.com/main/dir/sub",
+          conn.buildCompleteUrl(Paths.get("dir", "sub")).toExternalForm());
+      assertEquals("http://celements.com/main/dir/sub",
+          conn.buildCompleteUrl(Paths.get("/", "main", "dir", "sub")).toExternalForm());
+    }
+  }
+
+  @Test
+  public void test_connect() throws Exception {
+    RemoteLogin remoteLogin = getNextcloudRemoteLogin();
+    Sardine sardineMock = createMockAndAddToDefault(Sardine.class);
+    Utils.getComponent(Execution.class).getContext()
+        .setProperty(sardineAdapter.getSardineExecutionContextKey(remoteLogin), sardineMock);
+    expect(sardineMock.exists(remoteLogin.getUrl())).andReturn(true);
+
+    replayDefault();
+    assertNotNull(sardineAdapter.connect(remoteLogin));
+    verifyDefault();
   }
 
   @Test
@@ -104,7 +144,7 @@ public class SardineAdapterTest extends AbstractComponentTest {
     remoteLogin.setUrl("https://nx2627.your-next.cloud/remote.php/webdav");
     String cacerts = "your-next.cloud.jks"; // contains cert for your-next.cloud
     getConfigurationSource().setProperty("celements.security.cacerts", cacerts);
-    expect(getWikiMock().getResource(cacerts)).andReturn(Resources.getResource(cacerts));
+    expect(getWikiMock().getResource(cacerts)).andReturn(Resources.getResource(cacerts)).anyTimes();
     return remoteLogin;
   }
 

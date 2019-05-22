@@ -62,10 +62,10 @@ public class SardineAdapter implements WebDavService, Initializable {
   private static final String EC_KEY = "WebDAV.Sardine";
 
   @Requirement(RemoteLoginClass.CLASS_DEF_HINT)
-  private ClassDefinition remoteLoginClass;
+  ClassDefinition remoteLoginClass;
 
   @Requirement
-  private Execution execution;
+  Execution execution;
 
   @Requirement
   private ModelContext context;
@@ -118,7 +118,7 @@ public class SardineAdapter implements WebDavService, Initializable {
    */
   public Sardine getSardine(RemoteLogin remoteLogin) throws DavConnectionException {
     checkNotNull(remoteLogin);
-    String key = EC_KEY + "|" + Objects.hash(remoteLogin.getUrl(), remoteLogin.getUsername());
+    String key = getSardineExecutionContextKey(remoteLogin);
     Sardine sardine = (Sardine) execution.getContext().getProperty(key);
     if ((sardine == null) || !isConnected(sardine, remoteLogin)) {
       execution.getContext().setProperty(key, sardine = newSecureSardineInstance(remoteLogin));
@@ -126,6 +126,10 @@ public class SardineAdapter implements WebDavService, Initializable {
       LOGGER.trace("getSardine - returning cached instance [{}]", sardine.hashCode());
     }
     return sardine;
+  }
+
+  String getSardineExecutionContextKey(RemoteLogin remoteLogin) {
+    return EC_KEY + "|" + Objects.hash(remoteLogin.getUrl(), remoteLogin.getUsername());
   }
 
   private Sardine newSecureSardineInstance(final RemoteLogin remoteLogin)
@@ -174,15 +178,17 @@ public class SardineAdapter implements WebDavService, Initializable {
     private final Sardine sardine;
     private final URL baseUrl;
 
-    private SardineConnection(Sardine sardine, URL baseUrl) {
+    SardineConnection(Sardine sardine, URL baseUrl) {
       this.sardine = checkNotNull(sardine);
       this.baseUrl = checkNotNull(baseUrl);
     }
 
-    private URL buildCompleteUrl(Path path) {
+    URL buildCompleteUrl(Path path) {
       try {
-        return UriBuilder.fromUri(baseUrl.toURI()).path(checkNotNull(
-            path).normalize().toString()).build().toURL();
+        if (checkNotNull(path).isAbsolute()) {
+          path = Paths.get("/", baseUrl.getPath()).relativize(path);
+        }
+        return UriBuilder.fromUri(baseUrl.toURI()).path(path.normalize().toString()).build().toURL();
       } catch (URISyntaxException | UriBuilderException | MalformedURLException exc) {
         // this shouldn't happen since baseUrl and path are already well defined objects
         throw new IllegalArgumentException(MessageFormat.format("unable to build url with "
