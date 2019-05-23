@@ -261,12 +261,14 @@ public class SardineAdapter implements WebDavService, Initializable {
     }
 
     @Override
-    public void createDirectory(@NotNull Path dirPath) throws IOException,
+    public void createDirectory(Path dirPath) throws IOException,
         DavResourceAccessException {
       URL url = buildCompleteUrl(dirPath);
       try {
         if (!sardine.exists(url.toExternalForm())) {
-          createDirectory(dirPath.getParent());
+          if (dirPath.getParent() != null) {
+            createDirectory(dirPath.getParent());
+          }
           sardine.createDirectory(url.toExternalForm());
           LOGGER.info("createDirectory - {}", url);
         }
