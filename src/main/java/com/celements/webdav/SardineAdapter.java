@@ -47,7 +47,9 @@ import com.celements.model.classes.ClassDefinition;
 import com.celements.model.context.ModelContext;
 import com.celements.model.reference.RefBuilder;
 import com.celements.webdav.exception.DavConnectionException;
+import com.celements.webdav.exception.DavFileNotExistsException;
 import com.celements.webdav.exception.DavResourceAccessException;
+import com.celements.webdav.exception.DavResourceAlreadyExistsException;
 import com.github.sardine.DavResource;
 import com.github.sardine.Sardine;
 import com.github.sardine.impl.SardineException;
@@ -238,8 +240,7 @@ public class SardineAdapter implements WebDavService, Initializable {
       if ((resource != null) && !resource.isDirectory()) {
         return resource;
       } else {
-        throw new DavResourceAccessException("resource not file [" + url + "] with type ["
-            + ((resource != null) ? resource.getContentType() : null) + "]");
+        throw new DavFileNotExistsException(url);
       }
     }
 
@@ -284,7 +285,7 @@ public class SardineAdapter implements WebDavService, Initializable {
           sardine.put(url.toExternalForm(), content);
           LOGGER.info("create - {}", url);
         } else {
-          throw new DavResourceAccessException("Already exists - " + url);
+          throw new DavResourceAlreadyExistsException(url);
         }
       } catch (SardineException sardineExc) {
         throwResourceAccessException(url, sardineExc);
@@ -347,17 +348,17 @@ public class SardineAdapter implements WebDavService, Initializable {
       throws DavResourceAccessException {
     switch (exc.getStatusCode()) {
       case 403: // Forbidden
-        throw new DavResourceAccessException("Forbidden - " + url, exc);
+        throw new DavResourceAccessException("Forbidden", url, exc);
       case 404: // Not found
-        throw new DavResourceAccessException("Not Found - " + url, exc);
+        throw new DavResourceAccessException("Not Found", url, exc);
       case 405: // Method Not Allowed
-        throw new DavResourceAccessException("Method not allowed - " + url, exc);
+        throw new DavResourceAccessException("Method not allowed", url, exc);
       case 409: // Conflict
-        throw new DavResourceAccessException("Conflict - " + url, exc);
+        throw new DavResourceAccessException("Conflict", url, exc);
       case 410: // Gone
-        throw new DavResourceAccessException("Gone - " + url, exc);
+        throw new DavResourceAccessException("Gone", url, exc);
       case 418: // I'm a teapot - happy April Fools' Day 2019 ;)
-        throw new DavResourceAccessException("Teapot - " + url, exc);
+        throw new DavResourceAccessException("Teapot", url, exc);
     }
   }
 
