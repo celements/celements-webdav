@@ -1,7 +1,6 @@
 package com.celements.webdav.exception;
 
 import java.net.URL;
-import java.util.Optional;
 
 import com.github.sardine.impl.SardineException;
 
@@ -28,13 +27,6 @@ public class DavResourceAccessException extends DavException {
   @Override
   public synchronized SardineException getCause() {
     return (SardineException) super.getCause();
-  }
-
-  public Optional<Integer> getStatusCode() {
-    if (getCause() != null) {
-      return Optional.of(getCause().getStatusCode());
-    }
-    return Optional.empty();
   }
 
 }
