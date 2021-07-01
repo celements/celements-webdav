@@ -59,6 +59,12 @@
       <groupId>com.github.lookfirst</groupId>
       <artifactId>sardine</artifactId>
       <version>5.10</version>
+        <exclusions>
+          <exclusion>
+            <groupId>commons-logging</groupId>
+            <artifactId>commons-logging</artifactId>
+          </exclusion>
+        </exclusions>
     </dependency>
   </dependencies>
   <scm>
