@@ -28,7 +28,7 @@
   </parent>
   <modelVersion>4.0.0</modelVersion>
   <artifactId>celements-webdav</artifactId>
-  <version>5.1</version>
+  <version>5.2-SNAPSHOT</version>
   <description>Celements WebDAV Client</description>
   <dependencies>
     <!-- provided dependencies included in web module -->
@@ -69,6 +69,6 @@
     <connection>scm:git:git@github.com:celements/celements-webdav.git</connection>
     <developerConnection>scm:git:git@github.com:celements/celements-webdav.git</developerConnection>
     <url>https://github.com/celements/celements-webdav</url>
-    <tag>celements-webdav-5.1</tag>
+    <tag>HEAD</tag>
   </scm>
 </project>
